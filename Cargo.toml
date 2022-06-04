@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { version = "0.2", features = ["desktop"] }
+dioxus = { version = "0.2", features = ["desktop", "router"] }
