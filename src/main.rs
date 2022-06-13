@@ -1,9 +1,14 @@
 use dioxus::prelude::*;
 
+use database::Database;
+
 mod components;
+mod database;
 mod pages;
 
 fn main() {
+    let db = Database::new("db.db");
+
     dioxus::desktop::launch(app);
 }
 
