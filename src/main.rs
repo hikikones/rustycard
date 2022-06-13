@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 
+mod components;
 mod pages;
 
 fn main() {

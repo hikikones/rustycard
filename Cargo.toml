@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 dioxus = { version = "0.2", features = ["desktop", "router"] }
+pulldown-cmark = "0.9"
