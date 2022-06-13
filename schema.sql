@@ -4,7 +4,7 @@ CREATE TABLE cards (
     due_date DATE DEFAULT (date('now', '+1 day')) NOT NULL,
     due_days INT DEFAULT 1 NOT NULL,
     attempts INT DEFAULT 0 NOT NULL,
-    successes INT DEFAULT 0 NOT NULL,
+    successes INT DEFAULT 0 NOT NULL
     -- FOREIGN KEY (topic_id) REFERENCES topics (topic_id)
     --     ON UPDATE CASCADE ON DELETE CASCADE
 );
