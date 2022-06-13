@@ -1,71 +1,76 @@
-use std::path::PathBuf;
+use std::path::Path;
 
-use rusqlite::{params, Connection, Error, Params, Result, Row, Statement};
+use rusqlite::{Connection, OpenFlags, Params, Result, Row, Statement};
 
 pub struct Database {
-    path: PathBuf,
+    conn: Connection,
 }
 
 impl Database {
-    pub fn new(file: &str) -> Self {
-        let path = PathBuf::from(file);
-
-        if path.exists() {
-            return Self { path };
+    pub fn new(path: impl AsRef<Path>) -> Self {
+        match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
+            Ok(conn) => Self { conn },
+            Err(_) => {
+                // Database not found. Create one.
+                match Connection::open(&path) {
+                    Ok(conn) => {
+                        let schema = std::fs::read_to_string("schema.sql").unwrap();
+                        conn.execute_batch(&schema).unwrap();
+                        Self { conn }
+                    }
+                    Err(err) => {
+                        panic!("Error opening database: {}", err)
+                    }
+                }
+            }
         }
-
-        let db = Database { path };
-        let file = std::fs::read_to_string("schema.sql").unwrap();
-        db.execute_batch(&file);
-
-        db
     }
 
-    pub fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
-        self.get_connection()
-            .query_row(sql, params, move |r| Ok(T::from(r)))
-            .expect("No single result was found")
-    }
-
-    pub fn read<T: DbItem>(&self, sql: &str, params: impl Params) -> Vec<T> {
-        let conn = self.get_connection();
-        let mut stmt = conn.prepare(sql).unwrap();
-        let mut rows = stmt.query(params).unwrap();
-
-        let mut items = vec![];
-        while let Some(row) = rows.next().unwrap() {
-            items.push(T::from(row))
+    fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
+        match self
+            .conn
+            .query_row(sql, params, move |row| Ok(T::from(row)))
+        {
+            Ok(item) => item,
+            Err(err) => panic!("Error single query: {}", err),
         }
-
-        items
     }
 
-    pub fn write(&self, sql: &str, params: impl Params) {
-        self.get_connection()
+    fn read_many<T: DbItem>(&self, sql: &str, params: impl Params) -> Vec<impl DbItem> {
+        let mut stmt = match self.conn.prepare(sql) {
+            Ok(stmt) => stmt,
+            Err(err) => panic!("Error preparing many query: {}", err),
+        };
+        let rows = match stmt.query_map(params, |row| Ok(T::from(row))) {
+            Ok(rows) => rows,
+            Err(err) => panic!("Error many query: {}", err),
+        };
+
+        rows.filter_map(|item| item.ok()).collect()
+    }
+
+    fn write(&self, sql: &str, params: impl Params) {
+        self.conn
             .execute(sql, params)
             .expect("Could not execute SQL query");
     }
 
     fn execute(&self, sql: &str) {
-        self.get_connection()
+        self.conn
             .execute(sql, [])
             .expect("Could not execute SQL statement");
     }
 
     fn execute_batch(&self, sql: &str) {
-        self.get_connection()
+        self.conn
             .execute_batch(sql)
             .expect("Could not execute batch SQL statement");
     }
 
     fn insert<P: Params>(&self, sql: &str, params: P) {
-        self.get_connection()
+        self.conn
             .execute(sql, params)
             .expect("Could not execute SQL statement");
-    }
-
-    fn get_connection(&self) -> Connection {
-        Connection::open(&self.path).expect("Could not open or create database")
     }
 }
 
