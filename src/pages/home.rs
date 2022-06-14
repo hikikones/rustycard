@@ -22,6 +22,12 @@ pub fn Home(cx: Scope) -> Element {
                 markdown.set(evt.value.clone());
             }
         }
+        button {
+            onclick: |_| {
+                db.create_card(markdown);
+            },
+            "Save"
+        }
 
         h2 { "Cards" }
         hr {}

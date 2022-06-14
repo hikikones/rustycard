@@ -35,27 +35,38 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
+    pub fn create_card(&self, content: &str) -> usize {
+        self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
+    }
+
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
         match self
             .connection
             .query_row(sql, params, move |row| Ok(T::from(row)))
         {
             Ok(item) => item,
-            Err(err) => panic!("Error single query: {}", err),
+            Err(err) => panic!("Error query row: {}", err),
         }
     }
 
     fn read_many<T: DbItem>(&self, sql: &str, params: impl Params) -> Vec<T> {
         let mut stmt = match self.connection.prepare(sql) {
             Ok(stmt) => stmt,
-            Err(err) => panic!("Error preparing many query: {}", err),
+            Err(err) => panic!("Error preparing query: {}", err),
         };
         let rows = match stmt.query_map(params, |row| Ok(T::from(row))) {
             Ok(rows) => rows,
-            Err(err) => panic!("Error many query: {}", err),
+            Err(err) => panic!("Error query map: {}", err),
         };
 
         rows.filter_map(|item| item.ok()).collect()
+    }
+
+    fn write_single(&self, sql: &str, params: impl Params) -> usize {
+        match self.connection.execute(sql, params) {
+            Ok(id) => id,
+            Err(err) => panic!("Error execute query: {}", err),
+        }
     }
 
     fn write(&self, sql: &str, params: impl Params) {
