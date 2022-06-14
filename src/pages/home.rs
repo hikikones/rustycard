@@ -41,5 +41,16 @@ pub fn Home(cx: Scope) -> Element {
                 text: "{c.content}",
             }
         })
+
+        h2 { "Tags" }
+        hr {}
+        ul {
+            db.get_tags().iter().map(|t| rsx! {
+                li {
+                    key: "{t.id}",
+                    "{t.name}",
+                }
+            })
+        }
     })
 }

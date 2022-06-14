@@ -32,6 +32,7 @@ impl Database {
     }
 
     pub fn get_card(&self, id: usize) -> Card {
+        assert!(id != 0);
         self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
     }
 
@@ -48,6 +49,27 @@ impl Database {
         self.write_single(
             "UPDATE cards SET content = ? WHERE card_id = ?",
             params![content, id],
+        );
+    }
+
+    pub fn _get_tag(&self, id: usize) -> Tag {
+        assert!(id != 0);
+        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
+    }
+
+    pub fn get_tags(&self) -> Vec<Tag> {
+        self.read_many("SELECT * FROM tags", [])
+    }
+
+    pub fn _create_tag(&self, name: &str) -> usize {
+        self.write_single("INSERT INTO tags (name) VALUES (?)", [name])
+    }
+
+    pub fn _update_tag_name(&self, id: usize, name: &str) {
+        assert!(id != 0);
+        self.write_single(
+            "UPDATE tags SET name = ? WHERE tag_id = ?",
+            params![name, id],
         );
     }
 
@@ -121,6 +143,21 @@ impl DbItem for Card {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
+        }
+    }
+}
+
+pub struct Tag {
+    pub id: usize,
+    pub name: String,
+    // TODO
+}
+
+impl DbItem for Tag {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get(0).unwrap(),
+            name: row.get(1).unwrap(),
         }
     }
 }

@@ -5,6 +5,7 @@ CREATE TABLE cards (
     due_days INT DEFAULT 1 NOT NULL,
     attempts INT DEFAULT 0 NOT NULL,
     successes INT DEFAULT 0 NOT NULL
+    -- TODO
     -- FOREIGN KEY (topic_id) REFERENCES topics (topic_id)
     --     ON UPDATE CASCADE ON DELETE CASCADE
 );
