@@ -16,6 +16,13 @@ pub fn EditCard(cx: Scope) -> Element {
 
     let db = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let markdown = use_state(&cx, || db.get_card(id).content);
+    let done = use_state(&cx, || false);
+
+    if *done.current() {
+        return cx.render(rsx! {
+            h1 { "DONE!" }
+        });
+    }
 
     cx.render(rsx! {
         h1 { "Edit card" }
@@ -32,7 +39,7 @@ pub fn EditCard(cx: Scope) -> Element {
                 if !markdown.is_empty() {
                     println!("Edit card!");
                     db.update_card_content(id, markdown);
-                    markdown.set(String::new());
+                    done.set(true);
                 }
             },
             "Save"
