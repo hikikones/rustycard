@@ -17,14 +17,18 @@ pub fn Home(cx: Scope) -> Element {
         hr {}
         CardEditor {
             value: markdown,
-            onchange: |evt: FormEvent| {
+            oninput: |evt: FormEvent| {
                 println!("{:?}", evt);
                 markdown.set(evt.value.clone());
             }
         }
         button {
             onclick: |_| {
-                db.create_card(markdown);
+                if !markdown.is_empty() {
+                    println!("Save card!");
+                    db.create_card(markdown);
+                    markdown.set(String::new());
+                }
             },
             "Save"
         }
