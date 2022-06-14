@@ -119,30 +119,6 @@ impl Database {
             Err(err) => panic!("Error execute query: {}", err),
         }
     }
-
-    fn write(&self, sql: &str, params: impl Params) {
-        self.connection
-            .execute(sql, params)
-            .expect("Could not execute SQL query");
-    }
-
-    fn execute(&self, sql: &str) {
-        self.connection
-            .execute(sql, [])
-            .expect("Could not execute SQL statement");
-    }
-
-    fn execute_batch(&self, sql: &str) {
-        self.connection
-            .execute_batch(sql)
-            .expect("Could not execute batch SQL statement");
-    }
-
-    fn insert<P: Params>(&self, sql: &str, params: P) {
-        self.connection
-            .execute(sql, params)
-            .expect("Could not execute SQL statement");
-    }
 }
 
 pub trait DbItem {

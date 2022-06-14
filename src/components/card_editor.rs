@@ -11,11 +11,7 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
             rows: "10",
             cols: "80",
             value: "{cx.props.value}",
-            // oninput: |evt| {
-            //     value.set(evt.value.clone());
-            // },
             oninput: |evt| cx.props.oninput.call(evt),
-            // "{cx.props.value}"
         }
         MarkdownView {
             text: "{value}",

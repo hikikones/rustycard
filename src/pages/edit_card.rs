@@ -20,7 +20,7 @@ pub fn EditCard(cx: Scope) -> Element {
 
     if *done.current() {
         return cx.render(rsx! {
-            h1 { "DONE!" }
+            h1 { "Done" }
         });
     }
 
