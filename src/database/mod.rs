@@ -17,7 +17,8 @@ impl Database {
                 // Database not found. Create one.
                 match Connection::open(&path) {
                     Ok(conn) => {
-                        let schema = std::fs::read_to_string("schema.sql").unwrap();
+                        // TODO: Assets path.
+                        let schema = std::fs::read_to_string("./src/database/schema.sql").unwrap();
                         conn.execute_batch(&schema).unwrap();
                         Self {
                             connection: Rc::new(conn),
