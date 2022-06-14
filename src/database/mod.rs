@@ -1,6 +1,6 @@
 use std::{path::Path, rc::Rc};
 
-use rusqlite::{params, Connection, OpenFlags, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
 #[derive(Clone)]
 pub struct Database {
@@ -71,6 +71,23 @@ impl Database {
             "UPDATE tags SET name = ? WHERE tag_id = ?",
             params![name, id],
         );
+    }
+
+    pub fn get_cards_by_tags(&self, tags: &[usize]) -> Vec<Card> {
+        self.read_many(
+            &format!(
+                r#"
+                SELECT * FROM cards
+                JOIN card_tag USING (card_id)
+                WHERE tag_id IN ({})
+                GROUP BY card_id
+                HAVING Count(*) = {}
+                "#,
+                tags.iter().map(|_| "?").collect::<Vec<_>>().join(","),
+                tags.len()
+            ),
+            params_from_iter(tags.iter()),
+        )
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {

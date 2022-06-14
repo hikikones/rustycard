@@ -52,5 +52,14 @@ pub fn Home(cx: Scope) -> Element {
                 }
             })
         }
+
+        h2 { "Cards with tag1 & tag2" }
+        hr {}
+        db.get_cards_by_tags(&[1,2]).iter().map(|c| rsx! {
+            MarkdownView {
+                key: "{c.id}",
+                text: "{c.content}",
+            }
+        })
     })
 }
