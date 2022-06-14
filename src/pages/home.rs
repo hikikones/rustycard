@@ -35,7 +35,7 @@ pub fn Home(cx: Scope) -> Element {
 
         h2 { "Cards" }
         hr {}
-        db.get_cards().iter().map(|c| rsx!{
+        db.get_cards().iter().map(|c| rsx! {
             MarkdownView {
                 key: "{c.id}",
                 text: "{c.content}",

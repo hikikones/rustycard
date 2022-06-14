@@ -1,6 +1,6 @@
 use std::{path::Path, rc::Rc};
 
-use rusqlite::{Connection, OpenFlags, Params, Row};
+use rusqlite::{params, Connection, OpenFlags, Params, Row};
 
 #[derive(Clone)]
 pub struct Database {
@@ -31,12 +31,24 @@ impl Database {
         }
     }
 
+    pub fn get_card(&self, id: usize) -> Card {
+        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
+    }
+
     pub fn get_cards(&self) -> Vec<Card> {
         self.read_many("SELECT * FROM cards", [])
     }
 
     pub fn create_card(&self, content: &str) -> usize {
         self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
+    }
+
+    pub fn update_card_content(&self, id: usize, content: &str) {
+        assert!(id != 0);
+        self.write_single(
+            "UPDATE cards SET content = ? WHERE card_id = ?",
+            params![content, id],
+        );
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
@@ -103,6 +115,7 @@ pub struct Card {
     pub content: String,
     // TODO
 }
+
 impl DbItem for Card {
     fn from(row: &Row) -> Self {
         Self {
