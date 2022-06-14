@@ -27,14 +27,34 @@ INSERT INTO tags (name)
             ("Tag3"),
             ("Tag4");
 
-INSERT INTO cards (content)
-    VALUES  ("**content**\n\n---\n\n__Back__"),
-            ("ok\n\n---\n\nlol"),
-            ("yes\n\n---\n\nno");
+INSERT INTO cards (content) VALUES
+("**content**
 
-INSERT INTO cards (content, due_date)
-    VALUES  ("TODAY\n\n---\n\nCard is scheduled for today", date('now')),
-            ("TOMORROW\n\n---\n\nCard is scheduled for tomorrow", date('now', '+1 day'));
+---
+
+__Back__"),
+("ok
+
+---
+
+lol"),
+("yes
+
+---
+
+no");
+
+INSERT INTO cards (content, due_date) VALUES
+("TODAY
+
+---
+
+Card is scheduled for today", date('now')),
+("TOMORROW
+
+---
+
+Card is scheduled for tomorrow", date('now', '+1 day'));
 
 INSERT INTO card_tag (card_id, tag_id)
     VALUES  (1, 1),
