@@ -8,25 +8,26 @@ use crate::{components::MarkdownView, database::*};
 pub fn Review(cx: Scope) -> Element {
     let db = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let cards = cx.use_hook(|_| get_due_cards(db));
-    let card = use_state(&cx, || cards.pop_front());
+    let current_card = use_state(&cx, || cards.pop_front());
 
-    let render = match &**card {
-        Some(card) => rsx!(MarkdownView {
-            text: &card.content
-        }),
-        None => rsx!(h2 { "Done" }),
+    let review = match &**current_card {
+        Some(card) => rsx! {
+            MarkdownView {
+                text: &card.content
+            }
+            button {
+                onclick: |_| {
+                    current_card.set(cards.pop_front());
+                },
+                "Next"
+            }
+        },
+        None => rsx! {
+            h2 { "Done" }
+        },
     };
 
-    cx.render(rsx! {
-        h1 { "Review" }
-        render
-        button {
-            onclick: |_| {
-                card.set(cards.pop_front());
-            },
-            "Next"
-        }
-    })
+    cx.render(review)
 }
 
 fn get_due_cards(db: &Database) -> VecDeque<Card> {
