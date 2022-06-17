@@ -4,8 +4,8 @@ use crate::{components::MarkdownView, database::*};
 
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
-    let db = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
-    let cards = cx.use_hook(|_| get_due_cards(db));
+    let db = use_context::<Database>(&cx).unwrap();
+    let cards = cx.use_hook(|_| db.read().get_cards());
 
     if cards.is_empty() {
         return cx.render(rsx! {
@@ -54,10 +54,7 @@ pub fn Review(cx: Scope) -> Element {
     })
 }
 
-fn get_due_cards(db: &Database) -> Vec<Card> {
-    db.get_cards()
-}
-
+// FIXME: Parse <hr> tags properly with an html parser or something.
 fn split_text(text: &str, count: usize) -> String {
     let mut split = text.split("---");
     let mut s = split.next().unwrap().to_string();

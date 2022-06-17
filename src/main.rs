@@ -10,9 +10,7 @@ fn main() {
 }
 
 fn app(cx: Scope) -> Element {
-    cx.use_hook(|_| {
-        cx.provide_context(database::Database::new("db.sqlite3"));
-    });
+    use_context_provider(&cx, || database::Database::new("db.sqlite3"));
 
     cx.render(rsx! {
         Router {
