@@ -4,6 +4,7 @@ use database::Database;
 
 mod components;
 mod database;
+mod markdown;
 mod pages;
 
 fn main() {
