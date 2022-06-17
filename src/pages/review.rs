@@ -2,17 +2,6 @@ use dioxus::prelude::*;
 
 use crate::{components::MarkdownView, database::*};
 
-fn split_text(text: &str, count: usize) -> String {
-    let mut split = text.split("---");
-    let mut s = split.next().unwrap().to_string();
-    for _ in 1..count {
-        s.push_str("---");
-        s.push_str(split.next().unwrap());
-    }
-
-    s
-}
-
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
     let db = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
@@ -33,7 +22,6 @@ pub fn Review(cx: Scope) -> Element {
         true => rsx! {
             button {
                 onclick: move |_| {
-                    // *index = (*index + 1) % cards.len();
                     cards.swap_remove(*index);
                     if !cards.is_empty() {
                         *show_count = 1;
@@ -50,9 +38,6 @@ pub fn Review(cx: Scope) -> Element {
             button {
                 onclick: |_| {
                     *show_count += 1;
-                    // if *show_count > *show_amount {
-                    //     *show_count = 1;
-                    // }
                     content.set(split_text(&cards[*index].content, *show_count));
                 },
                 "Show"
@@ -70,6 +55,15 @@ pub fn Review(cx: Scope) -> Element {
 }
 
 fn get_due_cards(db: &Database) -> Vec<Card> {
-    println!("GET_DUE_CARDS");
     db.get_cards()
+}
+
+fn split_text(text: &str, count: usize) -> String {
+    let mut split = text.split("---");
+    let mut s = split.next().unwrap().to_string();
+    for _ in 1..count {
+        s.push_str("---");
+        s.push_str(split.next().unwrap());
+    }
+    s
 }
