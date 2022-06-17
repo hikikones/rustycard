@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
 
-use database::Database;
-
 mod components;
 mod database;
 mod markdown;
@@ -13,7 +11,7 @@ fn main() {
 
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
-        cx.provide_context(Database::new("db.sqlite3"));
+        cx.provide_context(database::Database::new("db.sqlite3"));
     });
 
     cx.render(rsx! {
