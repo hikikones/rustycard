@@ -4,12 +4,12 @@ use crate::{components::MarkdownView, database::*};
 
 fn split_text(text: &str, count: usize) -> String {
     let mut split = text.split("---");
-    let mut s = String::new();
-    for _ in 0..count {
-        println!("PUSH");
+    let mut s = split.next().unwrap().to_string();
+    for _ in 1..count {
+        s.push_str("---");
         s.push_str(split.next().unwrap());
     }
-    println!("{s}");
+
     s
 }
 
@@ -29,21 +29,43 @@ pub fn Review(cx: Scope) -> Element {
     let show_amount = cx.use_hook(|_| cards[*index].content.split("---").count());
     let content = use_state(&cx, || split_text(&cards[*index].content, *show_count));
 
+    let buttons = match *show_amount == 1 || *show_count == *show_amount {
+        true => rsx! {
+            button {
+                onclick: move |_| {
+                    // *index = (*index + 1) % cards.len();
+                    cards.swap_remove(*index);
+                    if !cards.is_empty() {
+                        *show_count = 1;
+                        *show_amount = cards[*index].content.split("---").count();
+                        content.set(split_text(&cards[*index].content, *show_count));
+                    } else {
+                        cx.needs_update();
+                    }
+                },
+                "Next"
+            }
+        },
+        false => rsx! {
+            button {
+                onclick: |_| {
+                    *show_count += 1;
+                    // if *show_count > *show_amount {
+                    //     *show_count = 1;
+                    // }
+                    content.set(split_text(&cards[*index].content, *show_count));
+                },
+                "Show"
+            }
+        },
+    };
+
     cx.render(rsx! {
         h1 { "Review" }
         MarkdownView {
             text: content
         }
-        button {
-            onclick: move |_| {
-                *show_count += 1;
-                if *show_count > *show_amount {
-                    *show_count = 1;
-                }
-                content.set(split_text(&cards[*index].content, *show_count));
-            },
-            "Show"
-        }
+        buttons
     })
 }
 

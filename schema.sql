@@ -31,33 +31,33 @@ INSERT INTO tags (name)
             ("Tag4");
 
 INSERT INTO cards (content) VALUES
-("**content**
+("single"),
+("front
 
 ---
 
-__Back__"),
-("ok
+back"),
+("first
 
 ---
 
-lol"),
-("yes
+second
 
 ---
 
-no");
+third");
 
-INSERT INTO cards (content, due_date) VALUES
-("TODAY
+-- INSERT INTO cards (content, due_date) VALUES
+-- ("TODAY
 
----
+-- ---
 
-Card is scheduled for today", date('now')),
-("TOMORROW
+-- Card is scheduled for today", date('now')),
+-- ("TOMORROW
 
----
+-- ---
 
-Card is scheduled for tomorrow", date('now', '+1 day'));
+-- Card is scheduled for tomorrow", date('now', '+1 day'));
 
 INSERT INTO card_tag (card_id, tag_id)
     VALUES  (1, 1),
