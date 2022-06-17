@@ -1,28 +1,23 @@
-use std::{path::Path, rc::Rc};
+use std::path::Path;
 
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
-#[derive(Clone)]
 pub struct Database {
-    connection: Rc<Connection>,
+    connection: Connection,
 }
 
 impl Database {
     pub fn new(path: impl AsRef<Path>) -> Self {
         match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
-            Ok(conn) => Self {
-                connection: Rc::new(conn),
-            },
+            Ok(conn) => Self { connection: conn },
             Err(_) => {
                 // Database not found. Create one.
                 match Connection::open(&path) {
                     Ok(conn) => {
                         // TODO: Assets path.
-                        let schema = std::fs::read_to_string("./src/database/schema.sql").unwrap();
+                        let schema = std::fs::read_to_string("schema.sql").unwrap();
                         conn.execute_batch(&schema).unwrap();
-                        Self {
-                            connection: Rc::new(conn),
-                        }
+                        Self { connection: conn }
                     }
                     Err(err) => {
                         panic!("Error opening database: {}", err)

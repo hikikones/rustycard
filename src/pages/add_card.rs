@@ -4,7 +4,7 @@ use crate::{components::CardEditor, database::Database};
 
 #[allow(non_snake_case)]
 pub fn AddCard(cx: Scope) -> Element {
-    let db = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = use_context::<Database>(&cx).unwrap();
     let markdown = use_state(&cx, || String::from("# Yoyo"));
 
     cx.render(rsx! {
@@ -17,10 +17,10 @@ pub fn AddCard(cx: Scope) -> Element {
             }
         }
         button {
-            onclick: |_| {
+            onclick: move |_| {
                 if !markdown.is_empty() {
                     println!("Save card!");
-                    db.create_card(markdown);
+                    db.read().create_card(markdown);
                     markdown.set(String::new());
                 }
             },
