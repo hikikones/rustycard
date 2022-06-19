@@ -18,8 +18,7 @@ impl Database {
                 match Connection::open(&path) {
                     Ok(conn) => {
                         // TODO: Assets path.
-                        let schema = std::fs::read_to_string("schema.sql").unwrap();
-                        conn.execute_batch(&schema).unwrap();
+                        conn.execute_batch(include_str!("schema.sql")).unwrap();
                         Self {
                             connection: Rc::new(conn),
                         }
