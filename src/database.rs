@@ -36,6 +36,34 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
+    pub fn _get_due_card(&self) -> Option<Card> {
+        // FIXME
+        match self.connection.query_row(
+            "SELECT * FROM cards ORDER BY RANDOM() LIMIT 1",
+            [],
+            |row| Ok(<Card as DbItem>::from(row)),
+        ) {
+            Ok(card) => Some(card),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_due_cards(&self) -> Vec<Card> {
+        // FIXME
+        self.get_cards()
+    }
+
+    pub fn _get_due_cards_count(&self) -> usize {
+        // FIXME
+        match self
+            .connection
+            .query_row("SELECT COUNT(card_id) FROM cards", [], |row| row.get(0))
+        {
+            Ok(item) => item,
+            Err(err) => panic!("Error query row: {}", err),
+        }
+    }
+
     pub fn create_card(&self, content: &str) -> usize {
         self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
     }
