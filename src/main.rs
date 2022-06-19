@@ -7,9 +7,8 @@ mod markdown;
 mod pages;
 
 fn main() {
-    let app_dirs = platform_dirs::AppDirs::new(Some("name"), false).unwrap();
-    dbg!(&app_dirs);
-
+    // TODO: Create config and database here.
+    let cfg = config::Config::new();
     dioxus::desktop::launch(app);
 }
 
