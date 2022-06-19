@@ -1,10 +1,8 @@
 use dioxus::prelude::*;
 
 mod components;
-mod config;
-mod database;
-mod markdown;
 mod pages;
+mod services;
 
 fn main() {
     dioxus::desktop::launch(app);
@@ -12,8 +10,8 @@ fn main() {
 
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
-        let cfg = config::Config::new();
-        let db = database::Database::new(&cfg.db_file);
+        let cfg = services::config::Config::new();
+        let db = services::database::Database::new(&cfg.db_file);
         cx.provide_context(cfg);
         cx.provide_context(db);
     });

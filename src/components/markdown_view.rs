@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::markdown;
+use crate::services::markdown;
 
 #[allow(non_snake_case)]
 #[inline_props]

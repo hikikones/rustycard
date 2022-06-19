@@ -1,6 +1,6 @@
 use dioxus::{events::FormEvent, prelude::*};
 
-use crate::{components::CardEditor, database::Database};
+use crate::{components::CardEditor, services::database::Database};
 
 #[allow(non_snake_case)]
 pub fn AddCard(cx: Scope) -> Element {

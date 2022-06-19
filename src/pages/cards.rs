@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::{components::MarkdownView, database::Database};
+use crate::{components::MarkdownView, services::database::Database};
 
 #[allow(non_snake_case)]
 pub fn Cards(cx: Scope) -> Element {

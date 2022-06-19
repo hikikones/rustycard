@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use dioxus::prelude::*;
 
-use crate::{components::MarkdownView, database::*};
+use crate::{components::MarkdownView, services::database::*};
 
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
