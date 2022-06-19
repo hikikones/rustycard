@@ -14,7 +14,7 @@ pub fn EditCard(cx: Scope) -> Element {
 
     assert!(id != 0);
 
-    let db: &Database = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let markdown = use_state(&cx, || db.get_card(id).content);
     let done = use_state(&cx, || false);
 

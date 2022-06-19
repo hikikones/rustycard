@@ -18,10 +18,10 @@ impl Config {
         std::fs::create_dir_all(&media_dir).unwrap();
 
         // TODO: Parse or create config file.
-        // let file = if config_file_path.exists() {
-        //     File::open(config_file_path).unwrap()
+        // let file = if file_path.exists() {
+        //     File::open(file_path).unwrap()
         // } else {
-        //     File::create(config_file_path).unwrap()
+        //     File::create(file_path).unwrap()
         // };
 
         Self(Rc::new(Cfg { db_file, media_dir }))

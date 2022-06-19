@@ -6,7 +6,7 @@ use crate::{components::MarkdownView, database::*};
 
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
-    let db: &Database = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let cards = use_ref(&cx, || db.get_due_cards());
 
     if cards.read().is_empty() {
@@ -15,10 +15,9 @@ pub fn Review(cx: Scope) -> Element {
         });
     }
 
-    let index: &Cell<usize> = cx.use_hook(|_| Cell::new(0));
-    let show_count: &Cell<usize> = cx.use_hook(|_| Cell::new(1));
-    let show_amount: &Cell<usize> =
-        cx.use_hook(|_| Cell::new(split_count(&cards.read()[index.get()])));
+    let index = &*cx.use_hook(|_| Cell::new(0));
+    let show_count = &*cx.use_hook(|_| Cell::new(1));
+    let show_amount = &*cx.use_hook(|_| Cell::new(split_count(&cards.read()[index.get()])));
     let show_content = use_state(&cx, || {
         split_content(&cards.read()[index.get()], show_count.get())
     });
@@ -30,6 +29,7 @@ pub fn Review(cx: Scope) -> Element {
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
+                            index.set(index.get() % cards.len());
                             show_count.set(1);
                             show_amount.set(split_count(&cards[index.get()]));
                             show_content.set(split_content(&cards[index.get()], show_count.get()));

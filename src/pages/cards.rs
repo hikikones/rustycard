@@ -4,7 +4,7 @@ use crate::{components::MarkdownView, database::Database};
 
 #[allow(non_snake_case)]
 pub fn Cards(cx: Scope) -> Element {
-    let db: &Database = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
 
     cx.render(rsx! {
         h1 { "Cards" }
