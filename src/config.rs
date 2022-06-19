@@ -1,7 +1,9 @@
-use std::path::PathBuf;
+use std::{ops::Deref, path::PathBuf, rc::Rc};
 
 #[derive(Clone)]
-pub struct Config {
+pub struct Config(Rc<Cfg>);
+
+pub struct Cfg {
     pub db_file: PathBuf,
     pub media_dir: PathBuf,
 }
@@ -22,6 +24,14 @@ impl Config {
         //     File::create(config_file_path).unwrap()
         // };
 
-        Self { db_file, media_dir }
+        Self(Rc::new(Cfg { db_file, media_dir }))
+    }
+}
+
+impl Deref for Config {
+    type Target = Cfg;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
