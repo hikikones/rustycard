@@ -28,21 +28,24 @@ pub fn EditCard(cx: Scope) -> Element {
         h1 { "Edit card" }
         p { "Id: {id}" }
         CardEditor {
-            value: markdown,
-            oninput: |evt: FormEvent| {
-                println!("{:?}", evt);
-                markdown.set(evt.value.clone());
-            }
-        }
-        button {
-            onclick: move |_| {
-                if !markdown.is_empty() {
-                    println!("Edit card!");
-                    db.update_card_content(id, markdown);
-                    done.set(true);
-                }
+            value: db.get_card(id).content,
+            save: &|text| {
+                println!("edit save: {text}");
             },
-            "Save"
+            // oninput: |evt: FormEvent| {
+            //     println!("{:?}", evt);
+            //     markdown.set(evt.value.clone());
+            // }
         }
+        // button {
+        //     onclick: move |_| {
+        //         if !markdown.is_empty() {
+        //             println!("Edit card!");
+        //             db.update_card_content(id, markdown);
+        //             done.set(true);
+        //         }
+        //     },
+        //     "Save"
+        // }
     })
 }

@@ -1,6 +1,9 @@
 use dioxus::{events::FormEvent, prelude::*};
 
-use crate::{components::CardEditor, services::database::Database};
+use crate::{
+    components::{CardEditor, MarkdownView},
+    services::database::Database,
+};
 
 #[allow(non_snake_case)]
 pub fn AddCard(cx: Scope) -> Element {
@@ -10,21 +13,23 @@ pub fn AddCard(cx: Scope) -> Element {
     cx.render(rsx! {
         h1 { "Add card" }
         CardEditor {
-            value: markdown,
-            oninput: |evt: FormEvent| {
-                println!("{:?}", evt);
-                markdown.set(evt.value.clone());
-            }
-        }
-        button {
-            onclick: move |_| {
-                if !markdown.is_empty() {
-                    println!("Save card!");
-                    db.create_card(markdown);
-                    markdown.set(String::new());
-                }
+            save: &|text| {
+                println!("SAVE!: {text}");
             },
-            "Save"
+            // oninput: |evt: FormEvent| {
+            //     println!("{:?}", evt);
+            //     markdown.set(evt.value.clone());
+            // }
         }
+        // button {
+        //     onclick: move |_| {
+        //         if !markdown.is_empty() {
+        //             println!("Save card!");
+        //             db.create_card(markdown);
+        //             markdown.set(String::new());
+        //         }
+        //     },
+        //     "Save"
+        // }
     })
 }
