@@ -15,8 +15,8 @@ pub fn Review(cx: Scope) -> Element {
         });
     }
 
-    let index: &Cell<usize> = cx.use_hook(|_| Cell::new(0usize));
-    let show_count: &Cell<usize> = cx.use_hook(|_| Cell::new(1usize));
+    let index: &Cell<usize> = cx.use_hook(|_| Cell::new(0));
+    let show_count: &Cell<usize> = cx.use_hook(|_| Cell::new(1));
     let show_amount: &Cell<usize> =
         cx.use_hook(|_| Cell::new(split_count(&cards.read()[index.get()])));
     let show_content = use_state(&cx, || {

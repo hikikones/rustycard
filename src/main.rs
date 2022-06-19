@@ -1,11 +1,15 @@
 use dioxus::prelude::*;
 
 mod components;
+mod config;
 mod database;
 mod markdown;
 mod pages;
 
 fn main() {
+    let app_dirs = platform_dirs::AppDirs::new(Some("name"), false).unwrap();
+    dbg!(&app_dirs);
+
     dioxus::desktop::launch(app);
 }
 
