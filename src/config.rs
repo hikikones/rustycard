@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct Config {
-    db_file: PathBuf,
-    media_dir: PathBuf,
+    pub db_file: PathBuf,
+    pub media_dir: PathBuf,
 }
 
 impl Config {

@@ -4,12 +4,12 @@ use crate::{components::MarkdownView, database::Database};
 
 #[allow(non_snake_case)]
 pub fn Cards(cx: Scope) -> Element {
-    let db = use_context::<Database>(&cx).unwrap();
+    let db: &Database = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
 
     cx.render(rsx! {
         h1 { "Cards" }
         hr {}
-        db.read().get_cards().iter().map(|c| rsx! {
+        db.get_cards().iter().map(|c| rsx! {
             MarkdownView {
                 key: "{c.id}",
                 text: "{c.content}",
@@ -19,7 +19,7 @@ pub fn Cards(cx: Scope) -> Element {
         h1 { "Tags" }
         hr {}
         ul {
-            db.read().get_tags().iter().map(|t| rsx! {
+            db.get_tags().iter().map(|t| rsx! {
                 li {
                     key: "{t.id}",
                     "{t.name}",
@@ -29,7 +29,7 @@ pub fn Cards(cx: Scope) -> Element {
 
         h1 { "Cards with tag1 & tag2" }
         hr {}
-        db.read().get_cards_by_tags(&[1,2]).iter().map(|c| rsx! {
+        db.get_cards_by_tags(&[1,2]).iter().map(|c| rsx! {
             MarkdownView {
                 key: "{c.id}",
                 text: "{c.content}",

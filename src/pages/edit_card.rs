@@ -14,8 +14,8 @@ pub fn EditCard(cx: Scope) -> Element {
 
     assert!(id != 0);
 
-    let db = use_context::<Database>(&cx).unwrap();
-    let markdown = use_state(&cx, || db.read().get_card(id).content);
+    let db: &Database = cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let markdown = use_state(&cx, || db.get_card(id).content);
     let done = use_state(&cx, || false);
 
     if *done.current() {
@@ -38,7 +38,7 @@ pub fn EditCard(cx: Scope) -> Element {
             onclick: move |_| {
                 if !markdown.is_empty() {
                     println!("Edit card!");
-                    db.read().update_card_content(id, markdown);
+                    db.update_card_content(id, markdown);
                     done.set(true);
                 }
             },
