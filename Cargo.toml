@@ -7,3 +7,4 @@ edition = "2021"
 dioxus = { version = "0.2", features = ["desktop", "router"] }
 rusqlite = { version = "0.27", features = ["bundled"] }
 pulldown-cmark = "0.9"
+platform-dirs = "0.3"

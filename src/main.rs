@@ -1,16 +1,20 @@
 use dioxus::prelude::*;
 
 mod components;
-mod database;
-mod markdown;
 mod pages;
+mod services;
 
 fn main() {
     dioxus::desktop::launch(app);
 }
 
 fn app(cx: Scope) -> Element {
-    use_context_provider(&cx, || database::Database::new("db.sqlite3"));
+    cx.use_hook(|_| {
+        let cfg = services::config::Config::new();
+        let db = services::database::Database::new(&cfg.db_file);
+        cx.provide_context(cfg);
+        cx.provide_context(db);
+    });
 
     cx.render(rsx! {
         Router {
