@@ -10,9 +10,14 @@ pub struct Cfg {
 
 impl Config {
     pub fn new() -> Self {
+        let db_file = "dg.sqlite3";
+        let assets_dir = "assets/";
+
+        std::fs::create_dir_all(assets_dir).unwrap();
+
         Self(Rc::new(Cfg {
-            db_file: "db.sqlite3".into(),
-            assets_dir: "assets/".into(),
+            db_file: db_file.into(),
+            assets_dir: assets_dir.into(),
         }))
 
         // TODO: Parse or create config file.

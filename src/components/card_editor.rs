@@ -43,9 +43,13 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                     let ext = path.extension().unwrap();
 
                     let digest_name = format!("{:x}.{}", digest, ext.to_str().unwrap());
-
                     let target = &cfg.assets_dir.join(digest_name);
-                    std::fs::copy(path, target).unwrap();
+
+                    if !Path::exists(target) {
+                        println!("COPY");
+                        std::fs::copy(path, target).unwrap();
+                    }
+
 
                     let mut md = content.current().deref().clone();
                     md.push_str("\n");
