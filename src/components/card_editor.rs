@@ -20,8 +20,10 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
             text: "{content}",
         }
         button {
-            onclick: move |_| {
-                (cx.props.save)(content);
+            onclick: |_| {
+                // (cx.props.save_callback)(content);
+                cx.props.onsave.call(content);
+                content.set(String::new());
             },
             "Save"
         }
@@ -33,5 +35,5 @@ pub struct CardEditorProps<'a> {
     // oninput: EventHandler<'a, FormEvent>,
     #[props(default)]
     value: String,
-    save: &'a dyn Fn(&str),
+    onsave: EventHandler<'a, &'a str>,
 }

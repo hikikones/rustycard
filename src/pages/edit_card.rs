@@ -27,16 +27,16 @@ pub fn EditCard(cx: Scope) -> Element {
     cx.render(rsx! {
         h1 { "Edit card" }
         p { "Id: {id}" }
-        CardEditor {
-            value: db.get_card(id).content,
-            save: &|text| {
-                println!("edit save: {text}");
-            },
-            // oninput: |evt: FormEvent| {
-            //     println!("{:?}", evt);
-            //     markdown.set(evt.value.clone());
-            // }
-        }
+        // CardEditor {
+        //     value: db.get_card(id).content,
+        //     save_callback: &|text| {
+        //         println!("edit save: {text}");
+        //     },
+        //     // oninput: |evt: FormEvent| {
+        //     //     println!("{:?}", evt);
+        //     //     markdown.set(evt.value.clone());
+        //     // }
+        // }
         // button {
         //     onclick: move |_| {
         //         if !markdown.is_empty() {
