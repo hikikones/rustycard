@@ -13,7 +13,6 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
     let content = use_state(&cx, || cx.props.initial_value.to_owned());
 
     cx.render(rsx! {
-        img { src: "assets/img.png" }
         button {
             onclick: |_| {
                 let path = FileDialog::new()
