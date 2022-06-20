@@ -24,8 +24,8 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                 if let Some(path) = &path {
                     let bytes = std::fs::read(path).unwrap();
                     let digest = md5::compute(bytes);
-                    let digest_name = format!("{:x}.{}", digest, path.extension().unwrap().to_str().unwrap());
-                    let target = &cfg.assets_dir.join(digest_name);
+                    let filename = format!("{:x}.{}", digest, path.extension().unwrap().to_str().unwrap());
+                    let target = &cfg.assets_dir.join(filename);
 
                     if !Path::exists(target) {
                         std::fs::copy(path, target).unwrap();
