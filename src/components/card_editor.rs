@@ -1,10 +1,10 @@
-use dioxus::{events::FormEvent, prelude::*};
+use dioxus::prelude::*;
 
 use super::MarkdownView;
 
 #[allow(non_snake_case)]
 pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
-    let content = use_state(&cx, || cx.props.value.clone());
+    let content = use_state(&cx, || cx.props.initial_value.to_owned());
 
     cx.render(rsx! {
         textarea {
@@ -13,7 +13,6 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
             value: "{content}",
             oninput: |evt| {
                 content.set(evt.value.clone());
-                // cx.props.oninput.call(evt);
             },
         }
         MarkdownView {
@@ -21,7 +20,6 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
         }
         button {
             onclick: |_| {
-                // (cx.props.save_callback)(content);
                 cx.props.onsave.call(content);
                 content.set(String::new());
             },
@@ -32,8 +30,7 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
 
 #[derive(Props)]
 pub struct CardEditorProps<'a> {
-    // oninput: EventHandler<'a, FormEvent>,
     #[props(default)]
-    value: String,
+    initial_value: String,
     onsave: EventHandler<'a, &'a str>,
 }

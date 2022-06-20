@@ -1,4 +1,4 @@
-use dioxus::{events::FormEvent, prelude::*};
+use dioxus::prelude::*;
 
 use crate::{components::CardEditor, services::database::*};
 
@@ -15,7 +15,6 @@ pub fn EditCard(cx: Scope) -> Element {
     assert!(id != 0);
 
     let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
-    let markdown = use_state(&cx, || db.get_card(id).content);
     let done = use_state(&cx, || false);
 
     if *done.current() {
@@ -27,25 +26,14 @@ pub fn EditCard(cx: Scope) -> Element {
     cx.render(rsx! {
         h1 { "Edit card" }
         p { "Id: {id}" }
-        // CardEditor {
-        //     value: db.get_card(id).content,
-        //     save_callback: &|text| {
-        //         println!("edit save: {text}");
-        //     },
-        //     // oninput: |evt: FormEvent| {
-        //     //     println!("{:?}", evt);
-        //     //     markdown.set(evt.value.clone());
-        //     // }
-        // }
-        // button {
-        //     onclick: move |_| {
-        //         if !markdown.is_empty() {
-        //             println!("Edit card!");
-        //             db.update_card_content(id, markdown);
-        //             done.set(true);
-        //         }
-        //     },
-        //     "Save"
-        // }
+        CardEditor {
+            initial_value: db.get_card(id).content,
+            onsave: move |content: &str| {
+                if !content.is_empty() {
+                    db.update_card_content(id, content);
+                    done.set(true);
+                }
+            },
+        }
     })
 }
