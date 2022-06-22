@@ -35,5 +35,14 @@ pub fn Cards(cx: Scope) -> Element {
                 text: "{c.content}",
             }
         })
+
+        h1 { "Tagless cards" }
+        hr {}
+        db.get_cards_without_tags().iter().map(|c| rsx! {
+            MarkdownView {
+                key: "{c.id}",
+                text: "{c.content}",
+            }
+        })
     })
 }

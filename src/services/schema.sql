@@ -45,7 +45,8 @@ second
 
 ---
 
-third");
+third"),
+("tagless card");
 
 -- INSERT INTO cards (content, due_date) VALUES
 -- ("TODAY
@@ -64,5 +65,4 @@ INSERT INTO card_tag (card_id, tag_id)
             (2, 1),
             (2, 2),
             (2, 3),
-            (5, 2),
-            (5, 3);
+            (3, 1);
