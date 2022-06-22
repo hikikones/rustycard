@@ -126,7 +126,8 @@ impl Database {
         self.read_many(
             r#"
                 SELECT * FROM cards c WHERE NOT EXISTS (
-                    SELECT ct.card_id FROM card_tag ct WHERE c.card_id = ct.card_id
+                    SELECT ct.card_id FROM card_tag ct
+                    WHERE c.card_id = ct.card_id
                 )
                 "#,
             [],
