@@ -102,6 +102,10 @@ impl Database {
     }
 
     pub fn get_cards_by_tags(&self, tags: &[usize]) -> Vec<Card> {
+        if tags.is_empty() {
+            return self.get_cards();
+        }
+
         self.read_many(
             &format!(
                 r#"
@@ -115,6 +119,17 @@ impl Database {
                 tags.len()
             ),
             params_from_iter(tags.iter()),
+        )
+    }
+
+    pub fn get_cards_without_tags(&self) -> Vec<Card> {
+        self.read_many(
+            r#"
+                SELECT *
+                FROM cards t1
+                WHERE NOT EXISTS (SELECT t2.card_id FROM card_tag t2 WHERE t1.card_id = t2.card_id)
+                "#,
+            [],
         )
     }
 

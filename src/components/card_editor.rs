@@ -32,10 +32,7 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                         std::fs::copy(path, target).unwrap();
                     }
 
-                    content.with_mut(|c|{
-                        c.push_str("\n");
-                        c.push_str(&format!("![]({})", target.display()));
-                    });
+                    content.make_mut().push_str(&format!("\n![]({})", target.display()));
                 }
             },
             "Image"
