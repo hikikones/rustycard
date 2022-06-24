@@ -202,6 +202,32 @@ impl Database {
             Err(err) => panic!("Error execute query: {}", err),
         }
     }
+
+    fn _read_single<T>(&self, sql: &str, params: impl Params, f: impl FnOnce(&Row) -> T) -> T {
+        let result = self.connection.query_row(sql, params, |row| Ok(f(row)));
+        result.unwrap()
+    }
+
+    fn _read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
+        match self.connection.prepare(sql) {
+            Ok(mut stmt) => match stmt.query(params) {
+                Ok(mut rows) => {
+                    while let Ok(Some(row)) = rows.next() {
+                        f(row);
+                    }
+                }
+                Err(err) => panic!("{err}"),
+            },
+            Err(err) => panic!("{err}"),
+        };
+    }
+
+    fn _write(&self, sql: &str, params: impl Params) -> usize {
+        match self.connection.execute(sql, params) {
+            Ok(changed_rows) => changed_rows,
+            Err(err) => panic!("{err}"),
+        }
+    }
 }
 
 pub trait DbItem {
@@ -247,6 +273,21 @@ impl DbItem for Tag {
         Self {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),
+        }
+    }
+}
+
+impl From<&Row<'_>> for Card {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get(0).unwrap(),
+            content: row.get(1).unwrap(),
+            review: CardReview {
+                due_date: row.get(2).unwrap(),
+                due_days: row.get(3).unwrap(),
+                recall_attempts: row.get(4).unwrap(),
+                recall_successes: row.get(5).unwrap(),
+            },
         }
     }
 }
