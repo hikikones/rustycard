@@ -26,6 +26,7 @@ pub fn Review(cx: Scope) -> Element {
         true => rsx! {
             button {
                 onclick: move |_| {
+                    update_card_review(&cards.read()[index.get()], true, db);
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
@@ -38,7 +39,24 @@ pub fn Review(cx: Scope) -> Element {
                         }
                     });
                 },
-                "Next"
+                "Yes"
+            }
+            button {
+                onclick: move |_| {
+                    update_card_review(&cards.read()[index.get()], false, db);
+                    cards.write_silent().swap_remove(index.get());
+                    cards.with(|cards|{
+                        if !cards.is_empty() {
+                            index.set(index.get() % cards.len());
+                            show_count.set(1);
+                            show_amount.set(split_count(&cards[index.get()]));
+                            show_content.set(split_content(&cards[index.get()], show_count.get()));
+                        } else {
+                            cx.needs_update();
+                        }
+                    });
+                },
+                "No"
             }
         },
         false => rsx! {
@@ -87,4 +105,19 @@ fn split_count(card: &Card) -> usize {
 
 fn split_iter(card: &Card) -> std::str::Split<&str> {
     card.content.split("---")
+}
+
+fn update_card_review(card: &Card, success: bool, db: &Database) {
+    let mut review = card.review.clone();
+    review.recall_attempts += 1;
+    if success {
+        review.recall_successes += 1;
+        review.due_days = (review.due_days * 2).max(1);
+    } else {
+        review.due_days = review.due_days / 2;
+    };
+    review.due_date = (chrono::Utc::now() + chrono::Duration::days(review.due_days as i64))
+        .date()
+        .naive_utc();
+    db.update_card_review(card.id, review);
 }

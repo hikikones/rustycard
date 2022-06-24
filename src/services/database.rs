@@ -40,68 +40,7 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
-    pub fn _get_due_card(&self) -> Option<Card> {
-        // FIXME
-        match self.connection.query_row(
-            "SELECT * FROM cards ORDER BY RANDOM() LIMIT 1",
-            [],
-            |row| Ok(<Card as DbItem>::from(row)),
-        ) {
-            Ok(card) => Some(card),
-            Err(_) => None,
-        }
-    }
-
-    pub fn get_due_cards(&self) -> Vec<Card> {
-        // FIXME
-        self.get_cards()
-    }
-
-    pub fn _get_due_cards_count(&self) -> usize {
-        // FIXME
-        match self
-            .connection
-            .query_row("SELECT COUNT(card_id) FROM cards", [], |row| row.get(0))
-        {
-            Ok(item) => item,
-            Err(err) => panic!("Error query row: {}", err),
-        }
-    }
-
-    pub fn create_card(&self, content: &str) -> usize {
-        self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
-    }
-
-    pub fn update_card_content(&self, id: usize, content: &str) {
-        assert!(id != 0);
-        self.write_single(
-            "UPDATE cards SET content = ? WHERE card_id = ?",
-            params![content, id],
-        );
-    }
-
-    pub fn _get_tag(&self, id: usize) -> Tag {
-        assert!(id != 0);
-        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
-    }
-
-    pub fn get_tags(&self) -> Vec<Tag> {
-        self.read_many("SELECT * FROM tags", [])
-    }
-
-    pub fn _create_tag(&self, name: &str) -> usize {
-        self.write_single("INSERT INTO tags (name) VALUES (?)", [name])
-    }
-
-    pub fn _update_tag_name(&self, id: usize, name: &str) {
-        assert!(id != 0);
-        self.write_single(
-            "UPDATE tags SET name = ? WHERE tag_id = ?",
-            params![name, id],
-        );
-    }
-
-    pub fn get_cards_by_tags(&self, tags: &[usize]) -> Vec<Card> {
+    pub fn get_cards_with_tags(&self, tags: &[usize]) -> Vec<Card> {
         if tags.is_empty() {
             return self.get_cards();
         }
@@ -132,6 +71,98 @@ impl Database {
                 "#,
             [],
         )
+    }
+
+    pub fn _get_due_card_random(&self) -> Option<Card> {
+        match self.connection.query_row(
+            r#"
+            SELECT * FROM cards
+            WHERE due_date <= (date('now'))
+            ORDER BY RANDOM()
+            LIMIT 1
+            "#,
+            [],
+            |row| Ok(<Card as DbItem>::from(row)),
+        ) {
+            Ok(card) => Some(card),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_due_cards(&self) -> Vec<Card> {
+        self.read_many(
+            r#"
+            SELECT * FROM cards
+            WHERE due_date <= (date('now'))
+            ORDER BY due_date ASC
+            "#,
+            [],
+        )
+    }
+
+    pub fn _get_due_cards_count(&self) -> usize {
+        match self.connection.query_row(
+            r#"
+            SELECT COUNT(card_id) FROM cards
+            WHERE due_date <= (date('now'))
+            "#,
+            [],
+            |row| row.get(0),
+        ) {
+            Ok(item) => item,
+            Err(err) => panic!("Error query row: {}", err),
+        }
+    }
+
+    pub fn create_card(&self, content: &str) -> usize {
+        self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
+    }
+
+    pub fn update_card_content(&self, id: usize, content: &str) {
+        assert!(id != 0);
+        self.write_single(
+            "UPDATE cards SET content = ? WHERE card_id = ?",
+            params![content, id],
+        );
+    }
+
+    pub fn update_card_review(&self, id: usize, review: CardReview) {
+        assert!(id != 0);
+        self.write_single(
+            r#"
+            UPDATE cards
+            SET due_date = ?, due_days = ?, recall_attempts = ?, recall_successes = ?
+            WHERE card_id = ?
+            "#,
+            params![
+                review.due_date,
+                review.due_days,
+                review.recall_attempts,
+                review.recall_successes,
+                id
+            ],
+        );
+    }
+
+    pub fn _get_tag(&self, id: usize) -> Tag {
+        assert!(id != 0);
+        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
+    }
+
+    pub fn get_tags(&self) -> Vec<Tag> {
+        self.read_many("SELECT * FROM tags", [])
+    }
+
+    pub fn _create_tag(&self, name: &str) -> usize {
+        self.write_single("INSERT INTO tags (name) VALUES (?)", [name])
+    }
+
+    pub fn _update_tag_name(&self, id: usize, name: &str) {
+        assert!(id != 0);
+        self.write_single(
+            "UPDATE tags SET name = ? WHERE tag_id = ?",
+            params![name, id],
+        );
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
@@ -172,7 +203,15 @@ pub trait DbItem {
 pub struct Card {
     pub id: usize,
     pub content: String,
-    // TODO
+    pub review: CardReview,
+}
+
+#[derive(Clone)]
+pub struct CardReview {
+    pub due_date: chrono::NaiveDate,
+    pub due_days: usize,
+    pub recall_attempts: usize,
+    pub recall_successes: usize,
 }
 
 impl DbItem for Card {
@@ -180,6 +219,12 @@ impl DbItem for Card {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
+            review: CardReview {
+                due_date: row.get(2).unwrap(),
+                due_days: row.get(3).unwrap(),
+                recall_attempts: row.get(4).unwrap(),
+                recall_successes: row.get(5).unwrap(),
+            },
         }
     }
 }
@@ -187,7 +232,6 @@ impl DbItem for Card {
 pub struct Tag {
     pub id: usize,
     pub name: String,
-    // TODO
 }
 
 impl DbItem for Tag {
