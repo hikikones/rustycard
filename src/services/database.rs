@@ -144,6 +144,10 @@ impl Database {
         );
     }
 
+    pub fn _delete_card(&self, id: usize) {
+        self.write_single("DELETE FROM cards WHERE card_id = ?", [id]);
+    }
+
     pub fn _get_tag(&self, id: usize) -> Tag {
         assert!(id != 0);
         self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
@@ -163,6 +167,10 @@ impl Database {
             "UPDATE tags SET name = ? WHERE tag_id = ?",
             params![name, id],
         );
+    }
+
+    pub fn _delete_tag(&self, id: usize) {
+        self.write_single("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
