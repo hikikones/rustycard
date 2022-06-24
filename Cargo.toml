@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 dioxus = { version = "0.2", features = ["desktop", "router"] }
-rusqlite = { version = "0.27", features = ["bundled"] }
+rusqlite = { version = "0.27", features = ["bundled", "chrono"] }
 pulldown-cmark = "0.9"
 platform-dirs = "0.3"
 native-dialog = "0.6"
 md5 = "0.7"
+chrono = "0.4"
