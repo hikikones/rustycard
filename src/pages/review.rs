@@ -1,4 +1,4 @@
-use std::{cell::Cell, ops::Add};
+use std::{cell::Cell};
 
 use dioxus::prelude::*;
 
@@ -26,6 +26,7 @@ pub fn Review(cx: Scope) -> Element {
         true => rsx! {
             button {
                 onclick: move |_| {
+                    update_card_review(&cards.read()[index.get()], true, db);
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
@@ -42,8 +43,7 @@ pub fn Review(cx: Scope) -> Element {
             }
             button {
                 onclick: move |_| {
-                    // TODO: db update card review
-
+                    update_card_review(&cards.read()[index.get()], false, db);
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
@@ -109,7 +109,7 @@ fn split_iter(card: &Card) -> std::str::Split<&str> {
 
 fn update_card_review(card: &Card, success: bool, db: &Database) {
     let due_days = if success {
-        card.due_days * 2
+        (card.due_days * 2).max(1)
     } else {
         card.due_days / 2
     };

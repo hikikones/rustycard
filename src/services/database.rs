@@ -40,6 +40,39 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
+    pub fn get_cards_with_tags(&self, tags: &[usize]) -> Vec<Card> {
+        if tags.is_empty() {
+            return self.get_cards();
+        }
+
+        self.read_many(
+            &format!(
+                r#"
+                SELECT * FROM cards
+                JOIN card_tag USING (card_id)
+                WHERE tag_id IN ({})
+                GROUP BY card_id
+                HAVING Count(*) = {}
+                "#,
+                tags.iter().map(|_| "?").collect::<Vec<_>>().join(","),
+                tags.len()
+            ),
+            params_from_iter(tags.iter()),
+        )
+    }
+
+    pub fn get_cards_without_tags(&self) -> Vec<Card> {
+        self.read_many(
+            r#"
+                SELECT * FROM cards c WHERE NOT EXISTS (
+                    SELECT ct.card_id FROM card_tag ct
+                    WHERE c.card_id = ct.card_id
+                )
+                "#,
+            [],
+        )
+    }
+
     pub fn _get_due_card_random(&self) -> Option<Card> {
         match self.connection.query_row(
             r#"
@@ -98,7 +131,7 @@ impl Database {
         self.write_single(
             r#"
             UPDATE cards
-            SET due_date = ?, due_days = ?, last_review_date = (date('now'))
+            SET due_date = ?, due_days = ?
             WHERE card_id = ?
             "#,
             params![due_date, due_days, id],
@@ -124,39 +157,6 @@ impl Database {
             "UPDATE tags SET name = ? WHERE tag_id = ?",
             params![name, id],
         );
-    }
-
-    pub fn get_cards_by_tags(&self, tags: &[usize]) -> Vec<Card> {
-        if tags.is_empty() {
-            return self.get_cards();
-        }
-
-        self.read_many(
-            &format!(
-                r#"
-                SELECT * FROM cards
-                JOIN card_tag USING (card_id)
-                WHERE tag_id IN ({})
-                GROUP BY card_id
-                HAVING Count(*) = {}
-                "#,
-                tags.iter().map(|_| "?").collect::<Vec<_>>().join(","),
-                tags.len()
-            ),
-            params_from_iter(tags.iter()),
-        )
-    }
-
-    pub fn get_cards_without_tags(&self) -> Vec<Card> {
-        self.read_many(
-            r#"
-                SELECT * FROM cards c WHERE NOT EXISTS (
-                    SELECT ct.card_id FROM card_tag ct
-                    WHERE c.card_id = ct.card_id
-                )
-                "#,
-            [],
-        )
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {

@@ -37,7 +37,7 @@ pub fn Cards(cx: Scope) -> Element {
                 if show {
                     cards.set(db.get_cards_without_tags());
                 } else {
-                    cards.set(db.get_cards_by_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
+                    cards.set(db.get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
                 }
             },
             "tagless",
@@ -56,7 +56,7 @@ pub fn Cards(cx: Scope) -> Element {
                             tags.insert(t.id);
                         }
                     });
-                    cards.set(db.get_cards_by_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
+                    cards.set(db.get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
                 },
                 "{t.name} \t",
             }
