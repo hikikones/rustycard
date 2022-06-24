@@ -35,6 +35,7 @@ pub fn Cards(cx: Scope) -> Element {
 
     // let selected_cards = use_state(&cx, || HashSet::<usize>::new());
     let selected_tags = use_state(&cx, || HashSet::<usize>::new());
+    let show_tagless = use_state(&cx, || false);
 
     // let a = selected_tags.current().iter().cloned().collect::<Vec<_>>();
 
@@ -42,13 +43,34 @@ pub fn Cards(cx: Scope) -> Element {
         h1 { "All Cards" }
 
         h2 { "Tags" }
+        span {
+            color: format_args!("{}", if **show_tagless {"blue"} else {"black"}),
+            onclick: move |_| {
+                // *show_tagless.make_mut() = !*show_tagless.current();
+                let mut show = false;
+                show_tagless.with_mut(|s| {
+                    *s = !*s;
+                    // println!("SHOW: {}", *show_tagless);
+                    show = *s;
+                });
+                // show_tagless.set(!*show_tagless.current());
+                println!("SHOW: {}", show);
+                if show {
+                    cards.set(db.get_cards_without_tags());
+               } else {
+                    cards.set(db.get_cards_by_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
+               }
+            },
+            "tagless",
+        }
         tags.iter().map(|t| rsx! {
             span {
                 key: "{t.id}",
                 // color: format_args!("{}", if t.selected {"blue"} else {"black"}),
-                color: format_args!("{}", if selected_tags.contains(&t.id) {"blue"} else {"black"}),
+                color: format_args!("{}", if !**show_tagless && selected_tags.contains(&t.id) {"blue"} else {"black"}),
                 onclick: |_| {
                     // println!("TAG ID: {}", t.id);
+                    show_tagless.set(false);
                     selected_tags.with_mut(|tags| {
                         if tags.contains(&t.id) {
                             tags.remove(&t.id);
