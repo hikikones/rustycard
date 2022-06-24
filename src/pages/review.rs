@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::{cell::Cell, ops::Add};
 
 use dioxus::prelude::*;
 
@@ -38,7 +38,25 @@ pub fn Review(cx: Scope) -> Element {
                         }
                     });
                 },
-                "Next"
+                "Yes"
+            }
+            button {
+                onclick: move |_| {
+                    // TODO: db update card review
+
+                    cards.write_silent().swap_remove(index.get());
+                    cards.with(|cards|{
+                        if !cards.is_empty() {
+                            index.set(index.get() % cards.len());
+                            show_count.set(1);
+                            show_amount.set(split_count(&cards[index.get()]));
+                            show_content.set(split_content(&cards[index.get()], show_count.get()));
+                        } else {
+                            cx.needs_update();
+                        }
+                    });
+                },
+                "No"
             }
         },
         false => rsx! {
@@ -87,4 +105,14 @@ fn split_count(card: &Card) -> usize {
 
 fn split_iter(card: &Card) -> std::str::Split<&str> {
     card.content.split("---")
+}
+
+fn update_card_review(card: &Card, success: bool, db: &Database) {
+    let due_days = if success {
+        card.due_days * 2
+    } else {
+        card.due_days / 2
+    };
+    let due_date = chrono::Utc::now() + chrono::Duration::days(due_days as i64);
+    db.update_card_review(card.id, due_date.date().naive_utc(), due_days);
 }
