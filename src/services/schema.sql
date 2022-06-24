@@ -3,10 +3,10 @@
 CREATE TABLE cards (
     card_id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,
-    due_date DATE DEFAULT (date('now', '+1 day')) NOT NULL,
-    due_days INT DEFAULT 1 NOT NULL,
-    attempts INT DEFAULT 0 NOT NULL,
-    successes INT DEFAULT 0 NOT NULL
+    due_date DATE DEFAULT (date('now')) NOT NULL,
+    due_days INT DEFAULT 0 NOT NULL,
+    recall_attempts INT DEFAULT 0 NOT NULL,
+    recall_successes INT DEFAULT 0 NOT NULL
     -- TODO
     -- FOREIGN KEY (topic_id) REFERENCES topics (topic_id)
     --     ON UPDATE CASCADE ON DELETE CASCADE
