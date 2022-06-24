@@ -53,8 +53,14 @@ impl Database {
     }
 
     pub fn get_due_cards(&self) -> Vec<Card> {
-        // FIXME
-        self.get_cards()
+        self.read_many(
+            r#"
+            SELECT * FROM cards
+            WHERE due_date <= (date('now'))
+            ORDER BY due_date ASC
+            "#,
+            [],
+        )
     }
 
     pub fn _get_due_cards_count(&self) -> usize {
