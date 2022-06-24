@@ -26,26 +26,25 @@ pub fn Cards(cx: Scope) -> Element {
     let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let cards = use_state(&cx, || db.get_cards());
     let tags = use_state(&cx, || db.get_tags());
-    // let tags = use_state(&cx, || {
-    //     db.get_tags()
-    //         .iter()
-    //         .map(|t| TagEl::from(t))
-    //         .collect::<Vec<_>>()
-    // });
-
-    // let selected_cards = use_state(&cx, || HashSet::<usize>::new());
     let selected_tags = use_state(&cx, || HashSet::<usize>::new());
     let show_tagless = use_state(&cx, || false);
-
-    // let a = selected_tags.current().iter().cloned().collect::<Vec<_>>();
 
     cx.render(rsx! {
         h1 { "All Cards" }
 
         h2 { "Tags" }
+        button {
+            onclick: |_| {
+                show_tagless.set(false);
+                selected_tags.make_mut().clear();
+                cards.set(db.get_cards());
+            },
+            "Reset"
+        }
+        br {}
         span {
             color: format_args!("{}", if **show_tagless {"blue"} else {"black"}),
-            onclick: move |_| {
+            onclick: |_| {
                 // *show_tagless.make_mut() = !*show_tagless.current();
                 let mut show = false;
                 show_tagless.with_mut(|s| {
@@ -63,6 +62,7 @@ pub fn Cards(cx: Scope) -> Element {
             },
             "tagless",
         }
+        br {}
         tags.iter().map(|t| rsx! {
             span {
                 key: "{t.id}",
