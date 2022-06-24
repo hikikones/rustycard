@@ -1,4 +1,4 @@
-use std::{cell::Cell, ops::Deref};
+use std::cell::Cell;
 
 use dioxus::prelude::*;
 
@@ -8,12 +8,6 @@ use crate::{components::MarkdownView, services::database::*};
 pub fn Review(cx: Scope) -> Element {
     let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let cards = use_ref(&cx, || db.get_due_cards());
-
-    for c in cards.read().deref() {
-        println!("{}", c.due_date);
-    }
-
-    println!("NOW: {}", chrono::Utc::now());
 
     if cards.read().is_empty() {
         return cx.render(rsx! {

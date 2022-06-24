@@ -174,7 +174,9 @@ pub struct Card {
     pub id: usize,
     pub content: String,
     pub due_date: NaiveDate,
-    // TODO
+    pub due_days: usize,
+    pub recall_attempts: usize,
+    pub recall_successes: usize,
 }
 
 impl DbItem for Card {
@@ -188,6 +190,9 @@ impl DbItem for Card {
             //     .parse::<NaiveDate>()
             //     .unwrap(),
             due_date: row.get(2).unwrap(),
+            due_days: row.get(3).unwrap(),
+            recall_attempts: row.get(4).unwrap(),
+            recall_successes: row.get(5).unwrap(),
         }
     }
 }
