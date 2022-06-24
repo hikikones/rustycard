@@ -173,7 +173,7 @@ pub trait DbItem {
 pub struct Card {
     pub id: usize,
     pub content: String,
-    pub due_date: DateTime<Utc>,
+    pub due_date: NaiveDate,
     // TODO
 }
 
