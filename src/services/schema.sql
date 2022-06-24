@@ -1,5 +1,7 @@
 -- TODO: Metadata table for version number.
 
+-- PRAGMA foreign_keys = ON;
+
 CREATE TABLE cards (
     card_id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,
@@ -21,7 +23,10 @@ CREATE TABLE card_tag (
     card_id INTEGER NOT NULL,
     tag_id INTEGER NOT NULL,
     PRIMARY KEY (card_id, tag_id)
-    -- TODO: FOREIGN KEY CASCADE
+    FOREIGN KEY (card_id) REFERENCES cards (card_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY (tag_id) REFERENCES tags (tag_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 INSERT INTO tags (name)

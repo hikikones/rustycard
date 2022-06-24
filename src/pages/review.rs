@@ -22,6 +22,10 @@ pub fn Review(cx: Scope) -> Element {
         split_content(&cards.read()[index.get()], show_count.get())
     });
 
+    // db.delete_card(1);
+    db.delete_tag(3);
+    db.print_relations();
+
     let buttons = match show_amount.get() == 1 || show_count.get() == show_amount.get() {
         true => rsx! {
             button {
