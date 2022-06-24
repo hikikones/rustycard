@@ -40,10 +40,14 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
-    pub fn _get_due_card(&self) -> Option<Card> {
-        // FIXME
+    pub fn _get_due_card_random(&self) -> Option<Card> {
         match self.connection.query_row(
-            "SELECT * FROM cards ORDER BY RANDOM() LIMIT 1",
+            r#"
+            SELECT * FROM cards
+            WHERE due_date <= (date('now'))
+            ORDER BY RANDOM()
+            LIMIT 1
+            "#,
             [],
             |row| Ok(<Card as DbItem>::from(row)),
         ) {
@@ -64,11 +68,14 @@ impl Database {
     }
 
     pub fn _get_due_cards_count(&self) -> usize {
-        // FIXME
-        match self
-            .connection
-            .query_row("SELECT COUNT(card_id) FROM cards", [], |row| row.get(0))
-        {
+        match self.connection.query_row(
+            r#"
+            SELECT COUNT(card_id) FROM cards
+            WHERE due_date <= (date('now'))
+            "#,
+            [],
+            |row| row.get(0),
+        ) {
             Ok(item) => item,
             Err(err) => panic!("Error query row: {}", err),
         }
