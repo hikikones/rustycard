@@ -1,7 +1,5 @@
 -- TODO: Metadata table for version number.
 
--- PRAGMA foreign_keys = ON;
-
 CREATE TABLE cards (
     card_id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,
@@ -9,9 +7,6 @@ CREATE TABLE cards (
     due_days INTEGER DEFAULT 0 NOT NULL,
     recall_attempts INTEGER DEFAULT 0 NOT NULL,
     recall_successes INTEGER DEFAULT 0 NOT NULL
-    -- TODO
-    -- FOREIGN KEY (topic_id) REFERENCES topics (topic_id)
-    --     ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE tags (
@@ -52,18 +47,6 @@ second
 
 third"),
 ("tagless card");
-
--- INSERT INTO cards (content, due_date) VALUES
--- ("TODAY
-
--- ---
-
--- Card is scheduled for today", date('now')),
--- ("TOMORROW
-
--- ---
-
--- Card is scheduled for tomorrow", date('now', '+1 day'));
 
 INSERT INTO card_tag (card_id, tag_id)
     VALUES  (1, 1),

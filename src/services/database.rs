@@ -144,33 +144,8 @@ impl Database {
         );
     }
 
-    pub fn delete_card(&self, id: usize) {
+    pub fn _delete_card(&self, id: usize) {
         self.write_single("DELETE FROM cards WHERE card_id = ?", [id]);
-    }
-
-    pub fn delete_tag(&self, id: usize) {
-        self.write_single("DELETE FROM tags WHERE tag_id = ?", [id]);
-    }
-
-    pub fn print_relations(&self) {
-        let mut stmt = match self.connection.prepare("SELECT * FROM card_tag") {
-            Ok(stmt) => stmt,
-            Err(err) => panic!("Error preparing query: {}", err),
-        };
-        let mut rows = match stmt.query([]) {
-            Ok(rows) => rows,
-            Err(err) => panic!("Error query map: {}", err),
-        };
-
-        while let Ok(row) = rows.next() {
-            if let Some(row) = row {
-                let cid: usize = row.get(0).unwrap();
-                let tid: usize = row.get(1).unwrap();
-                println!("cid: {},  tid: {}", cid, tid);
-            } else {
-                break;
-            }
-        }
     }
 
     pub fn _get_tag(&self, id: usize) -> Tag {
@@ -192,6 +167,10 @@ impl Database {
             "UPDATE tags SET name = ? WHERE tag_id = ?",
             params![name, id],
         );
+    }
+
+    pub fn _delete_tag(&self, id: usize) {
+        self.write_single("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
     fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
