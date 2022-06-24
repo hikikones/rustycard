@@ -93,6 +93,18 @@ impl Database {
         );
     }
 
+    pub fn update_card_review(&self, id: usize, due_date: chrono::NaiveDate, due_days: usize) {
+        assert!(id != 0);
+        self.write_single(
+            r#"
+            UPDATE cards
+            SET due_date = ?, due_days = ?, last_review_date = (date('now'))
+            WHERE card_id = ?
+            "#,
+            params![due_date, due_days, id],
+        );
+    }
+
     pub fn _get_tag(&self, id: usize) -> Tag {
         assert!(id != 0);
         self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
