@@ -1,6 +1,5 @@
-use std::{ops::Add, path::Path, rc::Rc};
+use std::{path::Path, rc::Rc};
 
-use chrono::{Date, DateTime, Datelike, NaiveDate, Utc};
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
 #[derive(Clone)]
@@ -173,7 +172,7 @@ pub trait DbItem {
 pub struct Card {
     pub id: usize,
     pub content: String,
-    pub due_date: NaiveDate,
+    pub due_date: chrono::NaiveDate,
     pub due_days: usize,
     pub recall_attempts: usize,
     pub recall_successes: usize,
@@ -184,11 +183,6 @@ impl DbItem for Card {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
-            // due_date: row
-            //     .get::<_, String>(2)
-            //     .unwrap()
-            //     .parse::<NaiveDate>()
-            //     .unwrap(),
             due_date: row.get(2).unwrap(),
             due_days: row.get(3).unwrap(),
             recall_attempts: row.get(4).unwrap(),
@@ -200,7 +194,6 @@ impl DbItem for Card {
 pub struct Tag {
     pub id: usize,
     pub name: String,
-    // TODO
 }
 
 impl DbItem for Tag {
