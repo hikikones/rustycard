@@ -1,4 +1,4 @@
-use std::{cell::Cell};
+use std::cell::Cell;
 
 use dioxus::prelude::*;
 
@@ -108,11 +108,16 @@ fn split_iter(card: &Card) -> std::str::Split<&str> {
 }
 
 fn update_card_review(card: &Card, success: bool, db: &Database) {
-    let due_days = if success {
-        (card.due_days * 2).max(1)
+    let mut review = card.review.clone();
+    review.recall_attempts += 1;
+    if success {
+        review.recall_successes += 1;
+        review.due_days = (review.due_days * 2).max(1);
     } else {
-        card.due_days / 2
+        review.due_days = review.due_days / 2;
     };
-    let due_date = chrono::Utc::now() + chrono::Duration::days(due_days as i64);
-    db.update_card_review(card.id, due_date.date().naive_utc(), due_days);
+    review.due_date = (chrono::Utc::now() + chrono::Duration::days(review.due_days as i64))
+        .date()
+        .naive_utc();
+    db.update_card_review(card.id, review);
 }

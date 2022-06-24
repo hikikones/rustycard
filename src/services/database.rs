@@ -126,15 +126,21 @@ impl Database {
         );
     }
 
-    pub fn update_card_review(&self, id: usize, due_date: chrono::NaiveDate, due_days: usize) {
+    pub fn update_card_review(&self, id: usize, review: CardReview) {
         assert!(id != 0);
         self.write_single(
             r#"
             UPDATE cards
-            SET due_date = ?, due_days = ?
+            SET due_date = ?, due_days = ?, recall_attempts = ?, recall_successes = ?
             WHERE card_id = ?
             "#,
-            params![due_date, due_days, id],
+            params![
+                review.due_date,
+                review.due_days,
+                review.recall_attempts,
+                review.recall_successes,
+                id
+            ],
         );
     }
 
@@ -197,6 +203,11 @@ pub trait DbItem {
 pub struct Card {
     pub id: usize,
     pub content: String,
+    pub review: CardReview,
+}
+
+#[derive(Clone)]
+pub struct CardReview {
     pub due_date: chrono::NaiveDate,
     pub due_days: usize,
     pub recall_attempts: usize,
@@ -208,10 +219,12 @@ impl DbItem for Card {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
-            due_date: row.get(2).unwrap(),
-            due_days: row.get(3).unwrap(),
-            recall_attempts: row.get(4).unwrap(),
-            recall_successes: row.get(5).unwrap(),
+            review: CardReview {
+                due_date: row.get(2).unwrap(),
+                due_days: row.get(3).unwrap(),
+                recall_attempts: row.get(4).unwrap(),
+                recall_successes: row.get(5).unwrap(),
+            },
         }
     }
 }
