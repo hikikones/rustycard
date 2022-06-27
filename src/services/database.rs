@@ -9,6 +9,25 @@ pub struct Database {
     connection: Rc<Connection>,
 }
 
+pub struct Card {
+    pub id: Id,
+    pub content: String,
+    pub review: CardReview,
+}
+
+#[derive(Clone)]
+pub struct CardReview {
+    pub due_date: chrono::NaiveDate,
+    pub due_days: usize,
+    pub recall_attempts: usize,
+    pub successful_recalls: usize,
+}
+
+pub struct Tag {
+    pub id: Id,
+    pub name: String,
+}
+
 impl Database {
     pub fn new(path: impl AsRef<Path>) -> Self {
         match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
@@ -207,36 +226,6 @@ impl Database {
         id.try_into().unwrap()
     }
 
-    // fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
-    //     match self
-    //         .connection
-    //         .query_row(sql, params, move |row| Ok(T::from(row)))
-    //     {
-    //         Ok(item) => item,
-    //         Err(err) => panic!("Error query row: {}", err),
-    //     }
-    // }
-
-    // fn read_many<T: DbItem>(&self, sql: &str, params: impl Params) -> Vec<T> {
-    //     let mut stmt = match self.connection.prepare(sql) {
-    //         Ok(stmt) => stmt,
-    //         Err(err) => panic!("Error preparing query: {}", err),
-    //     };
-    //     let rows = match stmt.query_map(params, |row| Ok(T::from(row))) {
-    //         Ok(rows) => rows,
-    //         Err(err) => panic!("Error query map: {}", err),
-    //     };
-
-    //     rows.filter_map(|item| item.ok()).collect()
-    // }
-
-    // fn write_single(&self, sql: &str, params: impl Params) -> Id {
-    //     match self.connection.execute(sql, params) {
-    //         Ok(id) => id,
-    //         Err(err) => panic!("Error execute query: {}", err),
-    //     }
-    // }
-
     fn read_single<T>(
         &self,
         sql: &str,
@@ -264,53 +253,6 @@ impl Database {
         match self.connection.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
-        }
-    }
-}
-
-pub trait DbItem {
-    fn from(row: &Row) -> Self;
-}
-
-pub struct Card {
-    pub id: Id,
-    pub content: String,
-    pub review: CardReview,
-}
-
-#[derive(Clone)]
-pub struct CardReview {
-    pub due_date: chrono::NaiveDate,
-    pub due_days: usize,
-    pub recall_attempts: usize,
-    pub successful_recalls: usize,
-}
-
-impl DbItem for Card {
-    fn from(row: &Row) -> Self {
-        Self {
-            id: row.get(0).unwrap(),
-            content: row.get(1).unwrap(),
-            review: CardReview {
-                due_date: row.get(2).unwrap(),
-                due_days: row.get(3).unwrap(),
-                recall_attempts: row.get(4).unwrap(),
-                successful_recalls: row.get(5).unwrap(),
-            },
-        }
-    }
-}
-
-pub struct Tag {
-    pub id: Id,
-    pub name: String,
-}
-
-impl DbItem for Tag {
-    fn from(row: &Row) -> Self {
-        Self {
-            id: row.get(0).unwrap(),
-            name: row.get(1).unwrap(),
         }
     }
 }
