@@ -1,10 +1,31 @@
 use std::{path::Path, rc::Rc};
 
-use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, Error, OpenFlags, Params, Row};
+
+pub type Id = usize;
 
 #[derive(Clone)]
 pub struct Database {
     connection: Rc<Connection>,
+}
+
+pub struct Card {
+    pub id: Id,
+    pub content: String,
+    pub review: CardReview,
+}
+
+#[derive(Clone)]
+pub struct CardReview {
+    pub due_date: chrono::NaiveDate,
+    pub due_days: usize,
+    pub recall_attempts: usize,
+    pub successful_recalls: usize,
+}
+
+pub struct Tag {
+    pub id: Id,
+    pub name: String,
 }
 
 impl Database {
@@ -31,21 +52,29 @@ impl Database {
         }
     }
 
-    pub fn get_card(&self, id: usize) -> Card {
+    pub fn get_card(&self, id: Id) -> Card {
         assert!(id != 0);
-        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
+        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id], |row| {
+            row.into()
+        })
+        .unwrap()
     }
 
     pub fn get_cards(&self) -> Vec<Card> {
-        self.read_many("SELECT * FROM cards", [])
+        let mut cards = Vec::new();
+        self.read("SELECT * FROM cards", [], |row| {
+            cards.push(row.into());
+        });
+        cards
     }
 
-    pub fn get_cards_with_tags(&self, tags: &[usize]) -> Vec<Card> {
+    pub fn get_cards_with_tags(&self, tags: &[Id]) -> Vec<Card> {
         if tags.is_empty() {
             return self.get_cards();
         }
 
-        self.read_many(
+        let mut cards = Vec::new();
+        self.read(
             &format!(
                 r#"
                 SELECT * FROM cards
@@ -58,11 +87,16 @@ impl Database {
                 tags.len()
             ),
             params_from_iter(tags.iter()),
-        )
+            |row| {
+                cards.push(row.into());
+            },
+        );
+        cards
     }
 
     pub fn get_cards_without_tags(&self) -> Vec<Card> {
-        self.read_many(
+        let mut cards = Vec::new();
+        self.read(
             r#"
                 SELECT * FROM cards c WHERE NOT EXISTS (
                     SELECT ct.card_id FROM card_tag ct
@@ -70,11 +104,15 @@ impl Database {
                 )
                 "#,
             [],
-        )
+            |row| {
+                cards.push(row.into());
+            },
+        );
+        cards
     }
 
     pub fn _get_due_card_random(&self) -> Option<Card> {
-        match self.connection.query_row(
+        self.read_single(
             r#"
             SELECT * FROM cards
             WHERE due_date <= (date('now'))
@@ -82,147 +120,144 @@ impl Database {
             LIMIT 1
             "#,
             [],
-            |row| Ok(<Card as DbItem>::from(row)),
-        ) {
-            Ok(card) => Some(card),
-            Err(_) => None,
-        }
+            |row| row.into(),
+        )
+        .ok()
     }
 
     pub fn get_due_cards(&self) -> Vec<Card> {
-        self.read_many(
+        let mut cards = Vec::new();
+        self.read(
             r#"
             SELECT * FROM cards
             WHERE due_date <= (date('now'))
             ORDER BY due_date ASC
             "#,
             [],
-        )
+            |row| {
+                cards.push(row.into());
+            },
+        );
+        cards
     }
 
     pub fn _get_due_cards_count(&self) -> usize {
-        match self.connection.query_row(
+        self.read_single(
             r#"
             SELECT COUNT(card_id) FROM cards
             WHERE due_date <= (date('now'))
             "#,
             [],
-            |row| row.get(0),
-        ) {
-            Ok(item) => item,
-            Err(err) => panic!("Error query row: {}", err),
-        }
+            |row| row.get(0).unwrap(),
+        )
+        .unwrap()
     }
 
-    pub fn create_card(&self, content: &str) -> usize {
-        self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
+    pub fn create_card(&self, content: &str) -> Id {
+        self.write("INSERT INTO cards (content) VALUES (?)", [content]);
+        self.last_insert_rowid()
     }
 
-    pub fn update_card_content(&self, id: usize, content: &str) {
+    pub fn update_card_content(&self, id: Id, content: &str) {
         assert!(id != 0);
-        self.write_single(
+        self.write(
             "UPDATE cards SET content = ? WHERE card_id = ?",
             params![content, id],
         );
     }
 
-    pub fn update_card_review(&self, id: usize, review: CardReview) {
+    pub fn update_card_review(&self, id: Id, review: CardReview) {
         assert!(id != 0);
-        self.write_single(
+        self.write(
             r#"
             UPDATE cards
-            SET due_date = ?, due_days = ?, recall_attempts = ?, recall_successes = ?
+            SET due_date = ?, due_days = ?, recall_attempts = ?, successful_recalls = ?
             WHERE card_id = ?
             "#,
             params![
                 review.due_date,
                 review.due_days,
                 review.recall_attempts,
-                review.recall_successes,
+                review.successful_recalls,
                 id
             ],
         );
     }
 
-    pub fn _delete_card(&self, id: usize) {
-        self.write_single("DELETE FROM cards WHERE card_id = ?", [id]);
+    pub fn _delete_card(&self, id: Id) {
+        self.write("DELETE FROM cards WHERE card_id = ?", [id]);
     }
 
-    pub fn _get_tag(&self, id: usize) -> Tag {
+    pub fn _get_tag(&self, id: Id) -> Tag {
         assert!(id != 0);
-        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
+        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id], |row| {
+            row.into()
+        })
+        .unwrap()
     }
 
     pub fn get_tags(&self) -> Vec<Tag> {
-        self.read_many("SELECT * FROM tags", [])
+        let mut tags = Vec::new();
+        self.read("SELECT * FROM tags", [], |row| {
+            tags.push(row.into());
+        });
+        tags
     }
 
-    pub fn _create_tag(&self, name: &str) -> usize {
-        self.write_single("INSERT INTO tags (name) VALUES (?)", [name])
+    pub fn _create_tag(&self, name: &str) -> Id {
+        self.write("INSERT INTO tags (name) VALUES (?)", [name]);
+        self.last_insert_rowid()
     }
 
-    pub fn _update_tag_name(&self, id: usize, name: &str) {
+    pub fn _update_tag_name(&self, id: Id, name: &str) {
         assert!(id != 0);
-        self.write_single(
+        self.write(
             "UPDATE tags SET name = ? WHERE tag_id = ?",
             params![name, id],
         );
     }
 
-    pub fn _delete_tag(&self, id: usize) {
-        self.write_single("DELETE FROM tags WHERE tag_id = ?", [id]);
+    pub fn _delete_tag(&self, id: Id) {
+        self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
-    fn read_single<T: DbItem>(&self, sql: &str, params: impl Params) -> T {
-        match self
-            .connection
-            .query_row(sql, params, move |row| Ok(T::from(row)))
-        {
-            Ok(item) => item,
-            Err(err) => panic!("Error query row: {}", err),
-        }
+    fn last_insert_rowid(&self) -> Id {
+        let id = self.connection.last_insert_rowid();
+        id.try_into().unwrap()
     }
 
-    fn read_many<T: DbItem>(&self, sql: &str, params: impl Params) -> Vec<T> {
-        let mut stmt = match self.connection.prepare(sql) {
-            Ok(stmt) => stmt,
-            Err(err) => panic!("Error preparing query: {}", err),
+    fn read_single<T>(
+        &self,
+        sql: &str,
+        params: impl Params,
+        f: impl FnOnce(&Row) -> T,
+    ) -> Result<T, Error> {
+        self.connection.query_row(sql, params, |row| Ok(f(row)))
+    }
+
+    fn read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
+        match self.connection.prepare(sql) {
+            Ok(mut stmt) => match stmt.query(params) {
+                Ok(mut rows) => {
+                    while let Ok(Some(row)) = rows.next() {
+                        f(row);
+                    }
+                }
+                Err(err) => panic!("{err}"),
+            },
+            Err(err) => panic!("{err}"),
         };
-        let rows = match stmt.query_map(params, |row| Ok(T::from(row))) {
-            Ok(rows) => rows,
-            Err(err) => panic!("Error query map: {}", err),
-        };
-
-        rows.filter_map(|item| item.ok()).collect()
     }
 
-    fn write_single(&self, sql: &str, params: impl Params) -> usize {
+    fn write(&self, sql: &str, params: impl Params) -> usize {
         match self.connection.execute(sql, params) {
-            Ok(id) => id,
-            Err(err) => panic!("Error execute query: {}", err),
+            Ok(changed_rows) => changed_rows,
+            Err(err) => panic!("{err}"),
         }
     }
 }
 
-pub trait DbItem {
-    fn from(row: &Row) -> Self;
-}
-
-pub struct Card {
-    pub id: usize,
-    pub content: String,
-    pub review: CardReview,
-}
-
-#[derive(Clone)]
-pub struct CardReview {
-    pub due_date: chrono::NaiveDate,
-    pub due_days: usize,
-    pub recall_attempts: usize,
-    pub recall_successes: usize,
-}
-
-impl DbItem for Card {
+impl From<&Row<'_>> for Card {
     fn from(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap(),
@@ -231,19 +266,14 @@ impl DbItem for Card {
                 due_date: row.get(2).unwrap(),
                 due_days: row.get(3).unwrap(),
                 recall_attempts: row.get(4).unwrap(),
-                recall_successes: row.get(5).unwrap(),
+                successful_recalls: row.get(5).unwrap(),
             },
         }
     }
 }
 
-pub struct Tag {
-    pub id: usize,
-    pub name: String,
-}
-
-impl DbItem for Tag {
-    fn from(row: &Row) -> Self {
+impl From<&Row<'_>> for Tag {
+    fn from(row: &Row<'_>) -> Self {
         Self {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),

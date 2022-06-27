@@ -22,7 +22,8 @@ pub fn Review(cx: Scope) -> Element {
         split_content(&cards.read()[index.get()], show_count.get())
     });
 
-    let buttons = match show_amount.get() == 1 || show_count.get() == show_amount.get() {
+    let is_card_fully_shown = show_count.get() == show_amount.get();
+    let review_buttons = match is_card_fully_shown {
         true => rsx! {
             button {
                 onclick: move |_| {
@@ -75,7 +76,7 @@ pub fn Review(cx: Scope) -> Element {
         MarkdownView {
             text: show_content
         }
-        buttons
+        review_buttons
         button {
             onclick: move |_| {
                 index.set((index.get() + 1) % cards.read().len());
@@ -111,7 +112,7 @@ fn update_card_review(card: &Card, success: bool, db: &Database) {
     let mut review = card.review.clone();
     review.recall_attempts += 1;
     if success {
-        review.recall_successes += 1;
+        review.successful_recalls += 1;
         review.due_days = (review.due_days * 2).max(1);
     } else {
         review.due_days = review.due_days / 2;
