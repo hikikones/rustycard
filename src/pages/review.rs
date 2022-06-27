@@ -112,7 +112,7 @@ fn update_card_review(card: &Card, success: bool, db: &Database) {
     let mut review = card.review.clone();
     review.recall_attempts += 1;
     if success {
-        review.recall_successes += 1;
+        review.successful_recalls += 1;
         review.due_days = (review.due_days * 2).max(1);
     } else {
         review.due_days = review.due_days / 2;

@@ -6,7 +6,7 @@ CREATE TABLE cards (
     due_date TEXT DEFAULT (date('now')) NOT NULL,
     due_days INTEGER DEFAULT 0 NOT NULL,
     recall_attempts INTEGER DEFAULT 0 NOT NULL,
-    recall_successes INTEGER DEFAULT 0 NOT NULL
+    successful_recalls INTEGER DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE tags (

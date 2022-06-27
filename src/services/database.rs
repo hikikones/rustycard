@@ -131,14 +131,14 @@ impl Database {
         self.write_single(
             r#"
             UPDATE cards
-            SET due_date = ?, due_days = ?, recall_attempts = ?, recall_successes = ?
+            SET due_date = ?, due_days = ?, recall_attempts = ?, successful_recalls = ?
             WHERE card_id = ?
             "#,
             params![
                 review.due_date,
                 review.due_days,
                 review.recall_attempts,
-                review.recall_successes,
+                review.successful_recalls,
                 id
             ],
         );
@@ -245,7 +245,7 @@ pub struct CardReview {
     pub due_date: chrono::NaiveDate,
     pub due_days: usize,
     pub recall_attempts: usize,
-    pub recall_successes: usize,
+    pub successful_recalls: usize,
 }
 
 impl DbItem for Card {
@@ -257,7 +257,7 @@ impl DbItem for Card {
                 due_date: row.get(2).unwrap(),
                 due_days: row.get(3).unwrap(),
                 recall_attempts: row.get(4).unwrap(),
-                recall_successes: row.get(5).unwrap(),
+                successful_recalls: row.get(5).unwrap(),
             },
         }
     }
@@ -286,7 +286,7 @@ impl From<&Row<'_>> for Card {
                 due_date: row.get(2).unwrap(),
                 due_days: row.get(3).unwrap(),
                 recall_attempts: row.get(4).unwrap(),
-                recall_successes: row.get(5).unwrap(),
+                successful_recalls: row.get(5).unwrap(),
             },
         }
     }
