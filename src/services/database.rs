@@ -2,6 +2,8 @@ use std::{path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
+pub type Id = usize;
+
 #[derive(Clone)]
 pub struct Database {
     connection: Rc<Connection>,
@@ -31,7 +33,7 @@ impl Database {
         }
     }
 
-    pub fn get_card(&self, id: usize) -> Card {
+    pub fn get_card(&self, id: Id) -> Card {
         assert!(id != 0);
         self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
     }
@@ -40,7 +42,7 @@ impl Database {
         self.read_many("SELECT * FROM cards", [])
     }
 
-    pub fn get_cards_with_tags(&self, tags: &[usize]) -> Vec<Card> {
+    pub fn get_cards_with_tags(&self, tags: &[Id]) -> Vec<Card> {
         if tags.is_empty() {
             return self.get_cards();
         }
@@ -114,11 +116,11 @@ impl Database {
         }
     }
 
-    pub fn create_card(&self, content: &str) -> usize {
+    pub fn create_card(&self, content: &str) -> Id {
         self.write_single("INSERT INTO cards (content) VALUES (?)", [content])
     }
 
-    pub fn update_card_content(&self, id: usize, content: &str) {
+    pub fn update_card_content(&self, id: Id, content: &str) {
         assert!(id != 0);
         self.write_single(
             "UPDATE cards SET content = ? WHERE card_id = ?",
@@ -126,7 +128,7 @@ impl Database {
         );
     }
 
-    pub fn update_card_review(&self, id: usize, review: CardReview) {
+    pub fn update_card_review(&self, id: Id, review: CardReview) {
         assert!(id != 0);
         self.write_single(
             r#"
@@ -144,11 +146,11 @@ impl Database {
         );
     }
 
-    pub fn _delete_card(&self, id: usize) {
+    pub fn _delete_card(&self, id: Id) {
         self.write_single("DELETE FROM cards WHERE card_id = ?", [id]);
     }
 
-    pub fn _get_tag(&self, id: usize) -> Tag {
+    pub fn _get_tag(&self, id: Id) -> Tag {
         assert!(id != 0);
         self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
     }
@@ -157,11 +159,11 @@ impl Database {
         self.read_many("SELECT * FROM tags", [])
     }
 
-    pub fn _create_tag(&self, name: &str) -> usize {
+    pub fn _create_tag(&self, name: &str) -> Id {
         self.write_single("INSERT INTO tags (name) VALUES (?)", [name])
     }
 
-    pub fn _update_tag_name(&self, id: usize, name: &str) {
+    pub fn _update_tag_name(&self, id: Id, name: &str) {
         assert!(id != 0);
         self.write_single(
             "UPDATE tags SET name = ? WHERE tag_id = ?",
@@ -169,7 +171,7 @@ impl Database {
         );
     }
 
-    pub fn _delete_tag(&self, id: usize) {
+    pub fn _delete_tag(&self, id: Id) {
         self.write_single("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
@@ -196,7 +198,7 @@ impl Database {
         rows.filter_map(|item| item.ok()).collect()
     }
 
-    fn write_single(&self, sql: &str, params: impl Params) -> usize {
+    fn write_single(&self, sql: &str, params: impl Params) -> Id {
         match self.connection.execute(sql, params) {
             Ok(id) => id,
             Err(err) => panic!("Error execute query: {}", err),
@@ -235,7 +237,7 @@ pub trait DbItem {
 }
 
 pub struct Card {
-    pub id: usize,
+    pub id: Id,
     pub content: String,
     pub review: CardReview,
 }
@@ -264,7 +266,7 @@ impl DbItem for Card {
 }
 
 pub struct Tag {
-    pub id: usize,
+    pub id: Id,
     pub name: String,
 }
 
