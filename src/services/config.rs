@@ -4,22 +4,36 @@ use std::{ops::Deref, path::PathBuf, rc::Rc};
 pub struct Config(Rc<ConfigData>);
 
 pub struct ConfigData {
-    pub db_file: PathBuf,
-    pub assets_dir: PathBuf,
+    app_path: PathBuf,
+    db_file_name: String,
+    assets_dir_name: String,
 }
 
 impl Config {
     pub fn new() -> Self {
-        let app_dir = get_app_dir();
-        let db_file = app_dir.join("rustycard.db");
-        let assets_dir = app_dir.join("assets/");
+        let app_path = get_app_path();
+        let db_file_name = "rustycard.db".into();
+        let assets_dir_name = "assets".into();
 
-        std::fs::create_dir_all(&assets_dir).unwrap();
+        std::fs::create_dir_all(&app_path.join(&assets_dir_name)).unwrap();
 
         Self(Rc::new(ConfigData {
-            db_file,
-            assets_dir,
+            app_path,
+            db_file_name,
+            assets_dir_name,
         }))
+    }
+
+    pub fn get_assets_dir_name(&self) -> &str {
+        &self.assets_dir_name
+    }
+
+    pub fn get_db_file_path(&self) -> PathBuf {
+        self.app_path.join(&self.db_file_name)
+    }
+
+    pub fn get_assets_dir_path(&self) -> PathBuf {
+        self.app_path.join(&self.assets_dir_name)
     }
 }
 
@@ -32,12 +46,12 @@ impl Deref for Config {
 }
 
 #[cfg(debug_assertions)]
-fn get_app_dir() -> PathBuf {
+fn get_app_path() -> PathBuf {
     ".".into()
 }
 
 #[cfg(not(debug_assertions))]
-fn get_app_dir() -> PathBuf {
+fn get_app_path() -> PathBuf {
     let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
     app_dirs.data_dir
 }
