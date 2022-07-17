@@ -12,7 +12,7 @@ pub struct ConfigData {
 impl Config {
     pub fn new() -> Self {
         let app_path = get_app_path();
-        let db_file_name = "rustycard.db".into();
+        let db_file_name = get_db_file_name();
         let assets_dir_name = "assets".into();
 
         std::fs::create_dir_all(&app_path.join(&assets_dir_name)).unwrap();
@@ -52,6 +52,17 @@ fn get_app_path() -> PathBuf {
 
 #[cfg(not(debug_assertions))]
 fn get_app_path() -> PathBuf {
-    let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
-    app_dirs.data_dir
+    // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
+    // app_dirs.data_dir
+    ".".into()
+}
+
+#[cfg(debug_assertions)]
+fn get_db_file_name() -> String {
+    "dev.db".into()
+}
+
+#[cfg(not(debug_assertions))]
+fn get_db_file_name() -> String {
+    "rustycard.db".into()
 }
