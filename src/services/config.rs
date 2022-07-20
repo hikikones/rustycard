@@ -1,43 +1,68 @@
 use std::{ops::Deref, path::PathBuf, rc::Rc};
 
 #[derive(Clone)]
-pub struct Config(Rc<Cfg>);
+pub struct Config(Rc<ConfigData>);
 
-pub struct Cfg {
-    pub db_file: PathBuf,
-    pub assets_dir: PathBuf,
+pub struct ConfigData {
+    app_path: PathBuf,
+    db_file_name: String,
+    assets_dir_name: String,
 }
 
 impl Config {
     pub fn new() -> Self {
-        let db_file = "db.sqlite3";
-        let assets_dir = "assets/";
+        let app_path = get_app_path();
+        let db_file_name = get_db_file_name();
+        let assets_dir_name = "assets".into();
 
-        std::fs::create_dir_all(assets_dir).unwrap();
+        std::fs::create_dir_all(&app_path.join(&assets_dir_name)).unwrap();
 
-        Self(Rc::new(Cfg {
-            db_file: db_file.into(),
-            assets_dir: assets_dir.into(),
+        Self(Rc::new(ConfigData {
+            app_path,
+            db_file_name,
+            assets_dir_name,
         }))
+    }
 
-        // TODO: Parse or create config file.
-        // TODO: Set custom asset path.
+    pub fn get_assets_dir_name(&self) -> &str {
+        &self.assets_dir_name
+    }
 
-        // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
-        // std::fs::create_dir_all(&app_dirs.data_dir).unwrap();
+    pub fn get_db_file_path(&self) -> PathBuf {
+        self.app_path.join(&self.db_file_name)
+    }
 
-        // let db_file = app_dirs.data_dir.join("database.sqlite3");
-        // let media_dir = app_dirs.data_dir.join("media/");
-        // std::fs::create_dir_all(&media_dir).unwrap();
-
-        // Self(Rc::new(Cfg { db_file, media_dir }))
+    pub fn get_assets_dir_path(&self) -> PathBuf {
+        self.app_path.join(&self.assets_dir_name)
     }
 }
 
 impl Deref for Config {
-    type Target = Cfg;
+    type Target = ConfigData;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+#[cfg(debug_assertions)]
+fn get_app_path() -> PathBuf {
+    ".".into()
+}
+
+#[cfg(not(debug_assertions))]
+fn get_app_path() -> PathBuf {
+    // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
+    // app_dirs.data_dir
+    ".".into()
+}
+
+#[cfg(debug_assertions)]
+fn get_db_file_name() -> String {
+    "dev.db".into()
+}
+
+#[cfg(not(debug_assertions))]
+fn get_db_file_name() -> String {
+    "rustycard.db".into()
 }

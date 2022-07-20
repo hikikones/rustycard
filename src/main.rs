@@ -11,7 +11,7 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = services::config::Config::new();
-        let db = services::database::Database::new(&cfg.db_file);
+        let db = services::database::Database::new(cfg.get_db_file_path());
         cx.provide_context(cfg);
         cx.provide_context(db);
     });
