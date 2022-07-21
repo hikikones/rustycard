@@ -2,6 +2,11 @@ use std::{path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, Error, OpenFlags, Params, Row};
 
+#[cfg(not(debug_assertions))]
+pub const DATABASE_FILE_NAME: &'static str = "rustycard.db";
+#[cfg(debug_assertions)]
+pub const DATABASE_FILE_NAME: &'static str = "dev.db";
+
 pub type Id = usize;
 
 #[derive(Clone)]

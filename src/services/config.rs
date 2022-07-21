@@ -1,5 +1,10 @@
 use std::{ops::Deref, path::PathBuf, rc::Rc};
 
+#[cfg(not(debug_assertions))]
+pub const CONFIG_FILE_NAME: &'static str = "config.toml";
+#[cfg(debug_assertions)]
+pub const CONFIG_FILE_NAME: &'static str = "dev.toml";
+
 #[derive(Clone)]
 pub struct Config(Rc<ConfigData>);
 

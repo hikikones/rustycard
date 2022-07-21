@@ -1684,6 +1684,8 @@ dependencies = [
  "platform-dirs",
  "pulldown-cmark",
  "rusqlite",
+ "serde",
+ "toml",
 ]
 
 [[package]]
