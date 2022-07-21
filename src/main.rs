@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 use toml::Value;
@@ -7,6 +9,34 @@ use services::{config::Config, database::Database};
 mod components;
 mod pages;
 mod services;
+
+struct AppConsts {
+    config_file_name: &'static str,
+    database_file_name: &'static str,
+    assets_dir_name: &'static str,
+}
+
+impl AppConsts {
+    #[cfg(not(debug_assertions))]
+    const fn new() -> Self {
+        Self {
+            config_file_name: "config.toml",
+            database_file_name: "rustycard.db",
+            assets_dir_name: "assets",
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    const fn new() -> Self {
+        Self {
+            config_file_name: "config.toml",
+            database_file_name: "rustycard.db",
+            assets_dir_name: "assets",
+        }
+    }
+}
+
+const APP_CONSTANTS: AppConsts = AppConsts::new();
 
 struct DbFileName {
     name: &'static str,
@@ -23,38 +53,42 @@ struct Cfg {
 }
 
 fn main() {
-    let cfg: Value = toml::from_str(
-        r#"
-        version = 1
-        b = "b"
-    "#,
-    )
-    .unwrap();
+    let c = Config::new();
+    let s = toml::to_string(&*c).unwrap();
+    std::fs::write("./config.toml", s).unwrap();
 
-    // dbg!(&cfg.get(0));
+    // let cfg: Value = toml::from_str(
+    //     r#"
+    //     version = 1
+    //     b = "b"
+    // "#,
+    // )
+    // .unwrap();
 
-    match &cfg {
-        Value::String(_) => todo!(),
-        Value::Integer(_) => todo!(),
-        Value::Float(_) => todo!(),
-        Value::Boolean(_) => todo!(),
-        Value::Datetime(_) => todo!(),
-        Value::Array(_) => todo!(),
-        Value::Table(table) => {
-            //todo
-            dbg!(table.contains_key("version"));
-            dbg!(&table["version"]);
-            dbg!(table.get("version"));
-        }
-    }
+    // // dbg!(&cfg.get(0));
 
-    let v = cfg
-        .get(1)
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
+    // match &cfg {
+    //     Value::String(_) => todo!(),
+    //     Value::Integer(_) => todo!(),
+    //     Value::Float(_) => todo!(),
+    //     Value::Boolean(_) => todo!(),
+    //     Value::Datetime(_) => todo!(),
+    //     Value::Array(_) => todo!(),
+    //     Value::Table(table) => {
+    //         //todo
+    //         dbg!(table.contains_key("version"));
+    //         dbg!(&table["version"]);
+    //         dbg!(table.get("version"));
+    //     }
+    // }
+
+    // let v = cfg
+    //     .get(1)
+    //     .unwrap()
+    //     .as_str()
+    //     .unwrap()
+    //     .parse::<usize>()
+    //     .unwrap();
 
     // let cfg: Cfg = toml::from_str(
     //     r#"
@@ -86,10 +120,10 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-        let db = Database::new(cfg.get_db_file_path());
+        // let db = Database::new(cfg.get_db_file_path());
         // let a = DB_FILE_NAME.name.to_owned();
-        cx.provide_context(cfg);
-        cx.provide_context(db);
+        // cx.provide_context(cfg);
+        // cx.provide_context(db);
     });
 
     cx.render(rsx! {
