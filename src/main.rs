@@ -1,4 +1,9 @@
-use std::path::PathBuf;
+use std::{
+    any::Any,
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -29,8 +34,8 @@ impl AppConsts {
     #[cfg(debug_assertions)]
     const fn new() -> Self {
         Self {
-            config_file_name: "config.toml",
-            database_file_name: "rustycard.db",
+            config_file_name: "dev.toml",
+            database_file_name: "dev.db",
             assets_dir_name: "assets",
         }
     }
@@ -52,10 +57,16 @@ struct Cfg {
     b: String,
 }
 
+thread_local! {
+    static SERVICES: Mutex<Services> = Mutex::new(Services::new());
+}
+
 fn main() {
-    let c = Config::new();
-    let s = toml::to_string(&*c).unwrap();
-    std::fs::write("./config.toml", s).unwrap();
+    dioxus::desktop::launch(test);
+
+    // let c = Config::new();
+    // let s = toml::to_string(&*c).unwrap();
+    // std::fs::write("./config.toml", s).unwrap();
 
     // let cfg: Value = toml::from_str(
     //     r#"
@@ -142,4 +153,80 @@ fn app(cx: Scope) -> Element {
             Redirect { from: "", to: "/review" }
         }
     })
+}
+
+struct Yoyo;
+impl Yoyo {
+    fn yo(&self) {
+        dbg!("yo!");
+    }
+}
+
+fn test(cx: Scope) -> Element {
+    cx.use_hook(|_| {
+        SERVICES.with(|f| {
+            let mut s = f.lock().unwrap();
+            s.add(Config::new());
+            s.add(Yoyo);
+            s.add(Database::new(Path::new("dev.db")));
+        });
+    });
+
+    cx.render(rsx! {
+        button {
+            onclick: |_| {
+                SERVICES.with(|f| {
+                    let s = f.lock().unwrap();
+                    // s.add(Config::new());
+                    s.get::<Yoyo>().yo();
+                    let db = s.get::<Database>();
+                    dbg!(db.get_cards());
+                });
+            },
+            "Yo"
+        }
+        button {
+            onclick: |_| {
+                SERVICES.with(|f| {
+                    let s = f.lock().unwrap();
+                    // s.add(Config::new());
+                    let y = s.get::<Yoyo>();
+                    let db = s.get::<Database>();
+                    dbg!(db.get_cards());
+                    y.yo();
+                });
+            },
+            "Yo2"
+        }
+    })
+}
+
+pub struct Services {
+    items: HashMap<String, Box<dyn Any>>,
+}
+
+impl Services {
+    pub fn new() -> Self {
+        Self {
+            items: HashMap::new(),
+        }
+    }
+
+    pub fn add<T: Any>(&mut self, t: T) {
+        let name = std::any::type_name::<T>();
+        println!("NAME: {}", name);
+        self.items.insert(name.to_string(), Box::new(t));
+    }
+
+    pub fn get<T: Any>(&self) -> &T {
+        let name = std::any::type_name::<T>();
+        let s = self.items.get(name).unwrap();
+
+        let t = match s.downcast_ref::<T>() {
+            Some(a) => a,
+            None => panic!("NO SERVICE!!!"),
+        };
+
+        t
+    }
 }

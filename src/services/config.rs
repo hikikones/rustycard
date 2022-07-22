@@ -37,6 +37,7 @@ impl Default for ConfigData {
 }
 
 impl Config {
+    // TODO: Handle panics.
     pub fn new() -> Self {
         let path = Path::new(APP_CONSTANTS.config_file_name);
         if !path.exists() {
@@ -60,10 +61,10 @@ impl Config {
         match version {
             0 => {
                 #[derive(Deserialize)]
-                struct V0 {
+                struct ConfigV0 {
                     location: Option<PathBuf>,
                 }
-                let cfg: V0 = toml::from_str(&data).unwrap();
+                let cfg: ConfigV0 = toml::from_str(&data).unwrap();
                 Self(Rc::new(ConfigData {
                     location: cfg.location,
                     ..Default::default()

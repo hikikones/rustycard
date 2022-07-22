@@ -14,13 +14,14 @@ pub struct Database {
     connection: Rc<Connection>,
 }
 
+#[derive(Debug)]
 pub struct Card {
     pub id: Id,
     pub content: String,
     pub review: CardReview,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CardReview {
     pub due_date: chrono::NaiveDate,
     pub due_days: usize,
@@ -28,6 +29,7 @@ pub struct CardReview {
     pub successful_recalls: usize,
 }
 
+#[derive(Debug)]
 pub struct Tag {
     pub id: Id,
     pub name: String,
