@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 use toml::Value;
 
-use services::{config::Config, database::Database};
+use services::{config::Config, database::Database, ServiceLocator};
 
 mod components;
 mod pages;
@@ -58,7 +58,7 @@ struct Cfg {
 }
 
 thread_local! {
-    static SERVICES: Mutex<Services> = Mutex::new(Services::new());
+    static SERVICES: Mutex<ServiceLocator> = Mutex::new(ServiceLocator::new());
 }
 
 fn main() {
@@ -169,6 +169,8 @@ fn test(cx: Scope) -> Element {
             s.add(Config::new());
             s.add(Yoyo);
             s.add(Database::new(Path::new("dev.db")));
+            s.add(Box::new(Yoyo));
+            s.get::<Box<Yoyo>>().yo();
         });
     });
 
@@ -201,32 +203,32 @@ fn test(cx: Scope) -> Element {
     })
 }
 
-pub struct Services {
-    items: HashMap<String, Box<dyn Any>>,
-}
+// pub struct Services {
+//     items: HashMap<String, Box<dyn Any>>,
+// }
 
-impl Services {
-    pub fn new() -> Self {
-        Self {
-            items: HashMap::new(),
-        }
-    }
+// impl Services {
+//     pub fn new() -> Self {
+//         Self {
+//             items: HashMap::new(),
+//         }
+//     }
 
-    pub fn add<T: Any>(&mut self, t: T) {
-        let name = std::any::type_name::<T>();
-        println!("NAME: {}", name);
-        self.items.insert(name.to_string(), Box::new(t));
-    }
+//     pub fn add<T: Any>(&mut self, t: T) {
+//         let name = std::any::type_name::<T>();
+//         println!("NAME: {}", name);
+//         self.items.insert(name.to_string(), Box::new(t));
+//     }
 
-    pub fn get<T: Any>(&self) -> &T {
-        let name = std::any::type_name::<T>();
-        let s = self.items.get(name).unwrap();
+//     pub fn get<T: Any>(&self) -> &T {
+//         let name = std::any::type_name::<T>();
+//         let s = self.items.get(name).unwrap();
 
-        let t = match s.downcast_ref::<T>() {
-            Some(a) => a,
-            None => panic!("NO SERVICE!!!"),
-        };
+//         let t = match s.downcast_ref::<T>() {
+//             Some(a) => a,
+//             None => panic!("NO SERVICE!!!"),
+//         };
 
-        t
-    }
-}
+//         t
+//     }
+// }
