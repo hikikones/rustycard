@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    cell::RefCell,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Mutex,
@@ -43,26 +44,26 @@ impl AppConsts {
 
 const APP_CONSTANTS: AppConsts = AppConsts::new();
 
-struct DbFileName {
-    name: &'static str,
-}
+// struct DbFileName {
+//     name: &'static str,
+// }
 
-const DB_FILE_NAME: DbFileName = DbFileName {
-    name: "oejfoewijfw",
-};
+// const DB_FILE_NAME: DbFileName = DbFileName {
+//     name: "oejfoewijfw",
+// };
 
-#[derive(Serialize, Deserialize)]
-struct Cfg {
-    version: usize,
-    b: String,
-}
+// #[derive(Serialize, Deserialize)]
+// struct Cfg {
+//     version: usize,
+//     b: String,
+// }
 
 thread_local! {
-    static SERVICES: Mutex<ServiceLocator> = Mutex::new(ServiceLocator::new());
+    static SERVICES: RefCell<ServiceLocator> = RefCell::new(ServiceLocator::new());
 }
 
 fn main() {
-    dioxus::desktop::launch(test);
+    // dioxus::desktop::launch(app);
 
     // let c = Config::new();
     // let s = toml::to_string(&*c).unwrap();
@@ -120,7 +121,7 @@ fn main() {
         //todo
     }
 
-    // dioxus::desktop::launch(app);
+    dioxus::desktop::launch(app);
 
     // Sync files to custom path
     {
@@ -131,10 +132,9 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-        // let db = Database::new(cfg.get_db_file_path());
-        // let a = DB_FILE_NAME.name.to_owned();
-        // cx.provide_context(cfg);
-        // cx.provide_context(db);
+        let db = Database::new(cfg.get_db_file_path());
+        cx.provide_context(cfg);
+        cx.provide_context(db);
     });
 
     cx.render(rsx! {
@@ -155,53 +155,53 @@ fn app(cx: Scope) -> Element {
     })
 }
 
-struct Yoyo;
-impl Yoyo {
-    fn yo(&self) {
-        dbg!("yo!");
-    }
-}
+// struct Yoyo;
+// impl Yoyo {
+//     fn yo(&self) {
+//         dbg!("yo!");
+//     }
+// }
 
-fn test(cx: Scope) -> Element {
-    cx.use_hook(|_| {
-        SERVICES.with(|f| {
-            let mut s = f.lock().unwrap();
-            s.add(Config::new());
-            s.add(Yoyo);
-            s.add(Database::new(Path::new("dev.db")));
-            s.add(Box::new(Yoyo));
-            s.get::<Box<Yoyo>>().yo();
-        });
-    });
+// fn test(cx: Scope) -> Element {
+//     cx.use_hook(|_| {
+//         SERVICES.with(|f| {
+//             let mut s = f.lock().unwrap();
+//             s.add(Config::new());
+//             s.add(Yoyo);
+//             s.add(Database::new(Path::new("dev.db")));
+//             s.add(Box::new(Yoyo));
+//             s.get::<Box<Yoyo>>().yo();
+//         });
+//     });
 
-    cx.render(rsx! {
-        button {
-            onclick: |_| {
-                SERVICES.with(|f| {
-                    let s = f.lock().unwrap();
-                    // s.add(Config::new());
-                    s.get::<Yoyo>().yo();
-                    let db = s.get::<Database>();
-                    dbg!(db.get_cards());
-                });
-            },
-            "Yo"
-        }
-        button {
-            onclick: |_| {
-                SERVICES.with(|f| {
-                    let s = f.lock().unwrap();
-                    // s.add(Config::new());
-                    let y = s.get::<Yoyo>();
-                    let db = s.get::<Database>();
-                    dbg!(db.get_cards());
-                    y.yo();
-                });
-            },
-            "Yo2"
-        }
-    })
-}
+//     cx.render(rsx! {
+//         button {
+//             onclick: |_| {
+//                 SERVICES.with(|f| {
+//                     let s = f.lock().unwrap();
+//                     // s.add(Config::new());
+//                     s.get::<Yoyo>().yo();
+//                     let db = s.get::<Database>();
+//                     dbg!(db.get_cards());
+//                 });
+//             },
+//             "Yo"
+//         }
+//         button {
+//             onclick: |_| {
+//                 SERVICES.with(|f| {
+//                     let s = f.lock().unwrap();
+//                     // s.add(Config::new());
+//                     let y = s.get::<Yoyo>();
+//                     let db = s.get::<Database>();
+//                     dbg!(db.get_cards());
+//                     y.yo();
+//                 });
+//             },
+//             "Yo2"
+//         }
+//     })
+// }
 
 // pub struct Services {
 //     items: HashMap<String, Box<dyn Any>>,

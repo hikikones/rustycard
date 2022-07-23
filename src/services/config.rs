@@ -39,12 +39,13 @@ impl Default for ConfigData {
 impl Config {
     // TODO: Handle panics.
     pub fn new() -> Self {
-        let path = Path::new(APP_CONSTANTS.config_file_name);
-        if !path.exists() {
+        let cfg_file = get_app_path().join(get_config_file_name());
+
+        if !cfg_file.exists() {
             return Self(Rc::new(ConfigData::default()));
         }
 
-        let data = std::fs::read_to_string(path).unwrap();
+        let data = std::fs::read_to_string(cfg_file).unwrap();
         let value: Value = toml::from_str(&data).unwrap();
         let version = match value {
             Value::Table(table) => {
@@ -90,17 +91,17 @@ impl Config {
         // }))
     }
 
-    // pub fn get_assets_dir_name(&self) -> &str {
-    //     &self.assets_dir_name
-    // }
+    pub fn get_db_file_path(&self) -> PathBuf {
+        get_app_path().join(get_db_file_name())
+    }
 
-    // pub fn get_db_file_path(&self) -> PathBuf {
-    //     self.app_path.join(&self.db_file_name)
-    // }
+    pub fn get_assets_dir_path(&self) -> PathBuf {
+        get_app_path().join(self.get_assets_dir_name())
+    }
 
-    // pub fn get_assets_dir_path(&self) -> PathBuf {
-    //     self.app_path.join(&self.assets_dir_name)
-    // }
+    pub fn get_assets_dir_name(&self) -> &str {
+        "assets"
+    }
 }
 
 impl Deref for Config {
@@ -111,24 +112,38 @@ impl Deref for Config {
     }
 }
 
+fn get_app_path() -> &'static Path {
+    Path::new(".")
+}
+
+// #[cfg(debug_assertions)]
+// fn get_app_path() -> PathBuf {
+//     ".".into()
+// }
+
+// #[cfg(not(debug_assertions))]
+// fn get_app_path() -> PathBuf {
+//     // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
+//     // app_dirs.data_dir
+//     ".".into()
+// }
+
 #[cfg(debug_assertions)]
-fn get_app_path() -> PathBuf {
-    ".".into()
+fn get_config_file_name() -> &'static str {
+    "dev.toml"
 }
 
 #[cfg(not(debug_assertions))]
-fn get_app_path() -> PathBuf {
-    // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
-    // app_dirs.data_dir
-    ".".into()
+fn get_config_file_name() -> &'static str {
+    "config.toml"
 }
 
 #[cfg(debug_assertions)]
-fn get_db_file_name() -> String {
-    "dev.db".into()
+fn get_db_file_name() -> &'static str {
+    "dev.db"
 }
 
 #[cfg(not(debug_assertions))]
-fn get_db_file_name() -> String {
-    "rustycard.db".into()
+fn get_db_file_name() -> &'static str {
+    "rustycard.db"
 }
