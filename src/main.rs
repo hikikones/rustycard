@@ -32,11 +32,13 @@ fn app(cx: Scope) -> Element {
                 Link { to: "/cards", li { "Cards"  }}
                 Link { to: "/add_card", li { "Add card"  }}
                 Link { to: "/edit_card/1", li { "Edit card"  }}
+                Link { to: "/settings", li { "Settings"  }}
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
             Route { to: "/add_card", pages::AddCard {} }
             Route { to: "/edit_card/:id", pages::EditCard {} }
+            Route { to: "/settings", pages::Settings {} }
             Redirect { from: "", to: "/review" }
         }
     })
