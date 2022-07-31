@@ -1,5 +1,5 @@
 use std::{
-    ops::Deref,
+    cell::RefCell,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use toml::Value;
 
 #[derive(Clone)]
-pub struct Config(Rc<ConfigData>);
+pub struct Config(Rc<RefCell<ConfigData>>);
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
@@ -34,7 +34,7 @@ impl Config {
         let cfg_file = cfg.app_path.join(CONFIG_FILE_NAME);
 
         if !cfg_file.exists() {
-            return Self(Rc::new(cfg));
+            return Self(Rc::new(RefCell::new(cfg)));
         }
 
         let data = std::fs::read_to_string(cfg_file).unwrap();
@@ -57,37 +57,35 @@ impl Config {
             }
         }
 
-        Self(Rc::new(cfg))
+        Self(Rc::new(RefCell::new(cfg)))
     }
 
     pub fn get_db_file_path(&self) -> PathBuf {
-        self.custom_db_file_path
+        self.0
+            .borrow()
+            .custom_db_file_path
             .to_owned()
             .unwrap_or(self.get_app_db_file_path())
     }
 
     pub fn get_app_db_file_path(&self) -> PathBuf {
-        self.app_path.join(DB_FILE_NAME)
+        self.0.borrow().app_path.join(DB_FILE_NAME)
     }
 
     pub fn get_custom_db_file_path(&self) -> Option<PathBuf> {
-        self.custom_db_file_path.to_owned()
+        self.0.borrow().custom_db_file_path.to_owned()
+    }
+
+    pub fn set_custom_db_file_path(&self, path: impl AsRef<Path>) {
+        self.0.borrow_mut().custom_db_file_path = Some(path.as_ref().to_path_buf());
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
-        self.app_path.join(ASSETS_DIR_NAME)
+        self.0.borrow().app_path.join(ASSETS_DIR_NAME)
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
         ASSETS_DIR_NAME
-    }
-}
-
-impl Deref for Config {
-    type Target = ConfigData;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

@@ -1,4 +1,7 @@
+use std::path::Path;
+
 use dioxus::prelude::*;
+use native_dialog::FileDialog;
 
 use crate::services::config::Config;
 
@@ -16,7 +19,15 @@ pub fn Settings(cx: Scope) -> Element {
         br {}
         button {
             onclick: move |_| {
-                //todo
+                let path = FileDialog::new()
+                .add_filter("Lazycard database", &["db"])
+                .show_save_single_file()
+                .unwrap();
+
+                if let Some(path) = &path {
+                    cfg.set_custom_db_file_path(path);
+                    db_location.set(path.to_str().unwrap().to_owned());
+                }
             },
             "Change"
         }
