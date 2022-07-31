@@ -76,7 +76,7 @@ impl Config {
         get_app_path().join(self.get_assets_dir_name())
     }
 
-    pub fn get_assets_dir_name(&self) -> &str {
+    pub const fn get_assets_dir_name(&self) -> &str {
         "assets"
     }
 }
@@ -94,21 +94,21 @@ fn get_app_path() -> &'static Path {
 }
 
 #[cfg(debug_assertions)]
-fn get_config_file_name() -> &'static str {
+const fn get_config_file_name() -> &'static str {
     "dev.toml"
 }
 
 #[cfg(not(debug_assertions))]
-fn get_config_file_name() -> &'static str {
+const fn get_config_file_name() -> &'static str {
     "config.toml"
 }
 
 #[cfg(debug_assertions)]
-fn get_db_file_name() -> &'static str {
+const fn get_db_file_name() -> &'static str {
     "dev.db"
 }
 
 #[cfg(not(debug_assertions))]
-fn get_db_file_name() -> &'static str {
+const fn get_db_file_name() -> &'static str {
     "rustycard.db"
 }
