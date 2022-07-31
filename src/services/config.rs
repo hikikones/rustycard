@@ -7,17 +7,6 @@ use std::{
 use serde::{Deserialize, Serialize};
 use toml::Value;
 
-use crate::APP_CONSTANTS;
-
-// #[cfg(not(debug_assertions))]
-// {
-//     pub const CONFIG_FILE_NAME: &'static str = "config.toml";
-//     pub const AAAA: &'static str = "config.toml";
-
-// }
-// #[cfg(debug_assertions)]
-// pub const CONFIG_FILE_NAME: &'static str = "dev.toml";
-
 #[derive(Clone)]
 pub struct Config(Rc<ConfigData>);
 
@@ -36,8 +25,8 @@ impl Default for ConfigData {
     }
 }
 
+// TODO: Handle panics.
 impl Config {
-    // TODO: Handle panics.
     pub fn new() -> Self {
         let cfg_file = get_app_path().join(get_config_file_name());
 
@@ -50,12 +39,12 @@ impl Config {
         let version = match value {
             Value::Table(table) => {
                 if !table.contains_key("version") {
-                    panic!(); // todo
+                    panic!();
                 }
                 table["version"].as_integer().unwrap()
             }
             _ => {
-                panic!() // todo
+                panic!()
             }
         };
 
@@ -77,18 +66,6 @@ impl Config {
             }
             _ => panic!(),
         }
-
-        // let app_path = get_app_path();
-        // let db_file_name = get_db_file_name();
-        // let assets_dir_name = "assets".into();
-
-        // std::fs::create_dir_all(&app_path.join(&assets_dir_name)).unwrap();
-
-        // Self(Rc::new(ConfigData {
-        //     app_path,
-        //     db_file_name,
-        //     assets_dir_name,
-        // }))
     }
 
     pub fn get_db_file_path(&self) -> PathBuf {
@@ -115,18 +92,6 @@ impl Deref for Config {
 fn get_app_path() -> &'static Path {
     Path::new(".")
 }
-
-// #[cfg(debug_assertions)]
-// fn get_app_path() -> PathBuf {
-//     ".".into()
-// }
-
-// #[cfg(not(debug_assertions))]
-// fn get_app_path() -> PathBuf {
-//     // let app_dirs = platform_dirs::AppDirs::new(Some("rustycard"), false).unwrap();
-//     // app_dirs.data_dir
-//     ".".into()
-// }
 
 #[cfg(debug_assertions)]
 fn get_config_file_name() -> &'static str {

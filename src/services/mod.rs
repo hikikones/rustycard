@@ -27,18 +27,5 @@ impl ServiceLocator {
             .expect(&format!("Could not locate service {type_name}"));
 
         service.downcast_ref::<T>().unwrap()
-
-        // let s = s as &Box<dyn Any>;
-        // dbg!("{}", std::any::type_name_of_val(s));
-
-        // let a = s.as_ref();
-        // let b = a.as_any();
-
-        // let t = match b.downcast_ref::<T>() {
-        //     Some(a) => a,
-        //     None => panic!("NO SERVICE!!!"),
-        // };
-
-        // t
     }
 }

@@ -2,11 +2,6 @@ use std::{path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, Error, OpenFlags, Params, Row};
 
-#[cfg(not(debug_assertions))]
-pub const DATABASE_FILE_NAME: &'static str = "rustycard.db";
-#[cfg(debug_assertions)]
-pub const DATABASE_FILE_NAME: &'static str = "dev.db";
-
 pub type Id = usize;
 
 #[derive(Clone)]
@@ -35,6 +30,7 @@ pub struct Tag {
     pub name: String,
 }
 
+// TODO: Fix schema not executed when creation succeeds, but app itself fails.
 impl Database {
     pub fn new(path: impl AsRef<Path>) -> Self {
         match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
@@ -45,7 +41,6 @@ impl Database {
                 // Database not found. Create one.
                 match Connection::open(&path) {
                     Ok(conn) => {
-                        // TODO: Assets path.
                         conn.execute_batch(include_str!("schema.sql")).unwrap();
                         Self {
                             connection: Rc::new(conn),
