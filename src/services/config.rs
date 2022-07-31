@@ -28,7 +28,7 @@ impl Default for ConfigData {
 // TODO: Handle panics.
 impl Config {
     pub fn new() -> Self {
-        let cfg_file = get_app_path().join(get_config_file_name());
+        let cfg_file = get_app_path().join(CONFIG_FILE_NAME);
 
         if !cfg_file.exists() {
             return Self(Rc::new(ConfigData::default()));
@@ -69,15 +69,15 @@ impl Config {
     }
 
     pub fn get_db_file_path(&self) -> PathBuf {
-        get_app_path().join(get_db_file_name())
+        get_app_path().join(DB_FILE_NAME)
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
-        get_app_path().join(self.get_assets_dir_name())
+        get_app_path().join(ASSETS_DIR_NAME)
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
-        "assets"
+        ASSETS_DIR_NAME
     }
 }
 
@@ -94,21 +94,15 @@ fn get_app_path() -> &'static Path {
 }
 
 #[cfg(debug_assertions)]
-const fn get_config_file_name() -> &'static str {
-    "dev.toml"
-}
+const CONFIG_FILE_NAME: &str = "dev.toml";
 
 #[cfg(not(debug_assertions))]
-const fn get_config_file_name() -> &'static str {
-    "config.toml"
-}
+const CONFIG_FILE_NAME: &str = "config.toml";
 
 #[cfg(debug_assertions)]
-const fn get_db_file_name() -> &'static str {
-    "dev.db"
-}
+const DB_FILE_NAME: &str = "dev.db";
 
 #[cfg(not(debug_assertions))]
-const fn get_db_file_name() -> &'static str {
-    "rustycard.db"
-}
+const DB_FILE_NAME: &str = "rustycard.db";
+
+const ASSETS_DIR_NAME: &str = "assets";
