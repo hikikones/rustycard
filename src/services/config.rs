@@ -68,6 +68,13 @@ impl Config {
         }
     }
 
+    pub fn get_current_db_file_path(&self) -> PathBuf {
+        self.location
+            .as_ref()
+            .unwrap_or(&get_app_path().join(DB_FILE_NAME))
+            .to_owned()
+    }
+
     pub fn get_db_file_path(&self) -> PathBuf {
         get_app_path().join(DB_FILE_NAME)
     }
