@@ -12,75 +12,70 @@ pub struct Config(Rc<ConfigData>);
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
+    #[serde(skip)]
+    app_path: PathBuf,
     version: usize,
-    pub location: Option<PathBuf>,
+    custom_db_file_path: Option<PathBuf>,
 }
 
 impl Default for ConfigData {
     fn default() -> Self {
         Self {
+            app_path: std::env::current_dir().unwrap(),
             version: 1,
-            location: None,
+            custom_db_file_path: None,
         }
     }
 }
 
-// TODO: Handle panics.
 impl Config {
     pub fn new() -> Self {
-        let cfg_file = get_app_path().join(CONFIG_FILE_NAME);
+        let mut cfg = ConfigData::default();
+        let cfg_file = cfg.app_path.join(CONFIG_FILE_NAME);
 
         if !cfg_file.exists() {
-            return Self(Rc::new(ConfigData::default()));
+            return Self(Rc::new(cfg));
         }
 
         let data = std::fs::read_to_string(cfg_file).unwrap();
         let value: Value = toml::from_str(&data).unwrap();
-        let version = match value {
-            Value::Table(table) => {
-                if !table.contains_key("version") {
-                    panic!();
-                }
-                table["version"].as_integer().unwrap()
-            }
-            _ => {
-                panic!()
-            }
-        };
 
-        match version {
-            0 => {
-                #[derive(Deserialize)]
-                struct ConfigV0 {
-                    location: Option<PathBuf>,
+        if let Value::Table(table) = value {
+            if let Some(version) = table.get("version") {
+                if let Some(version) = version.as_integer() {
+                    match version {
+                        1 => {
+                            if let Some(location) = table.get("location") {
+                                if let Some(location) = location.as_str() {
+                                    cfg.custom_db_file_path = Some(PathBuf::from(location));
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
-                let cfg: ConfigV0 = toml::from_str(&data).unwrap();
-                Self(Rc::new(ConfigData {
-                    location: cfg.location,
-                    ..Default::default()
-                }))
             }
-            1 => {
-                let cfg: ConfigData = toml::from_str(&data).unwrap();
-                Self(Rc::new(cfg))
-            }
-            _ => panic!(),
         }
-    }
 
-    pub fn get_current_db_file_path(&self) -> PathBuf {
-        self.location
-            .as_ref()
-            .unwrap_or(&get_app_path().join(DB_FILE_NAME))
-            .to_owned()
+        Self(Rc::new(cfg))
     }
 
     pub fn get_db_file_path(&self) -> PathBuf {
-        get_app_path().join(DB_FILE_NAME)
+        self.custom_db_file_path
+            .to_owned()
+            .unwrap_or(self.get_app_db_file_path())
+    }
+
+    pub fn get_app_db_file_path(&self) -> PathBuf {
+        self.app_path.join(DB_FILE_NAME)
+    }
+
+    pub fn get_custom_db_file_path(&self) -> Option<PathBuf> {
+        self.custom_db_file_path.to_owned()
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
-        get_app_path().join(ASSETS_DIR_NAME)
+        self.app_path.join(ASSETS_DIR_NAME)
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
@@ -94,10 +89,6 @@ impl Deref for Config {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-fn get_app_path() -> &'static Path {
-    Path::new(".")
 }
 
 #[cfg(debug_assertions)]
