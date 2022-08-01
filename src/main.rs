@@ -34,6 +34,12 @@ fn app(cx: Scope) -> Element {
                 Link { to: "/edit_card/1", li { "Edit card"  }}
                 Link { to: "/settings", li { "Settings"  }}
             }
+            button {
+                onclick: move |_| {
+                    //todo
+                },
+                "Quit"
+            }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
             Route { to: "/add_card", pages::AddCard {} }

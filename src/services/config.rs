@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use toml::Value;
 
 #[derive(Clone)]
-pub struct Config(Rc<RefCell<ConfigData>>);
+pub struct Config {
+    data: Rc<RefCell<ConfigData>>,
+    is_dirty: bool,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
@@ -36,7 +39,10 @@ impl Config {
         let cfg_file = cfg.app_path.join(CONFIG_FILE_NAME);
 
         if !cfg_file.exists() {
-            return Self(Rc::new(RefCell::new(cfg)));
+            return Self {
+                data: Rc::new(RefCell::new(cfg)),
+                is_dirty: false,
+            };
         }
 
         let data = std::fs::read_to_string(cfg_file).unwrap();
@@ -59,11 +65,14 @@ impl Config {
             }
         }
 
-        Self(Rc::new(RefCell::new(cfg)))
+        Self {
+            data: Rc::new(RefCell::new(cfg)),
+            is_dirty: false,
+        }
     }
 
     pub fn get_db_file_path(&self) -> PathBuf {
-        self.0
+        self.data
             .borrow()
             .custom_db_file_path
             .to_owned()
@@ -71,20 +80,21 @@ impl Config {
     }
 
     pub fn get_app_db_file_path(&self) -> PathBuf {
-        self.0.borrow().app_path.join(DB_FILE_NAME)
+        self.data.borrow().app_path.join(DB_FILE_NAME)
     }
 
     pub fn get_custom_db_file_path(&self) -> Option<PathBuf> {
-        self.0.borrow().custom_db_file_path.to_owned()
+        self.data.borrow().custom_db_file_path.to_owned()
     }
 
-    pub fn set_custom_db_file_path(&self, path: impl AsRef<Path>) {
+    pub fn set_custom_db_file_path(&mut self, path: impl AsRef<Path>) {
         assert!(path.as_ref().is_file());
-        self.0.borrow_mut().custom_db_file_path = Some(path.as_ref().to_path_buf());
+        self.data.borrow_mut().custom_db_file_path = Some(path.as_ref().to_path_buf());
+        self.is_dirty = true;
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
-        self.0
+        self.data
             .borrow()
             .custom_assets_dir_path
             .to_owned()
@@ -92,20 +102,25 @@ impl Config {
     }
 
     pub fn get_app_assets_dir_path(&self) -> PathBuf {
-        self.0.borrow().app_path.join(ASSETS_DIR_NAME)
+        self.data.borrow().app_path.join(ASSETS_DIR_NAME)
     }
 
     pub fn get_custom_assets_dir_path(&self) -> Option<PathBuf> {
-        self.0.borrow().custom_assets_dir_path.to_owned()
+        self.data.borrow().custom_assets_dir_path.to_owned()
     }
 
-    pub fn set_custom_assets_dir_path(&self, path: impl AsRef<Path>) {
+    pub fn set_custom_assets_dir_path(&mut self, path: impl AsRef<Path>) {
         assert!(path.as_ref().is_dir());
-        self.0.borrow_mut().custom_assets_dir_path = Some(path.as_ref().to_path_buf());
+        self.data.borrow_mut().custom_assets_dir_path = Some(path.as_ref().to_path_buf());
+        self.is_dirty = true;
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
         ASSETS_DIR_NAME
+    }
+
+    pub const fn is_dirty(&self) -> bool {
+        self.is_dirty
     }
 }
 
