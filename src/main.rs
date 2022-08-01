@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use dioxus::prelude::*;
+use dioxus::{desktop::use_window, prelude::*};
 
 use services::{config::Config, database::Database, ServiceLocator};
 
@@ -24,6 +24,9 @@ fn app(cx: Scope) -> Element {
         cx.provide_context(db);
     });
 
+    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
+    let window = use_window(&cx);
+
     cx.render(rsx! {
         Router {
             h1 { "Navigation" }
@@ -36,7 +39,8 @@ fn app(cx: Scope) -> Element {
             }
             button {
                 onclick: move |_| {
-                    //todo
+                    cfg.write();
+                    window.close();
                 },
                 "Quit"
             }

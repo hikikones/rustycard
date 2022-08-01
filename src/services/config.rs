@@ -1,5 +1,6 @@
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::RefCell,
+    io::Write,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -65,14 +66,6 @@ impl Config {
         Self(Rc::new(RefCell::new(cfg)))
     }
 
-    pub fn borrow<'a>(&'a self) -> Ref<'a, ConfigData> {
-        self.0.borrow()
-    }
-
-    pub fn borrow_mut<'a>(&'a self) -> RefMut<'a, ConfigData> {
-        self.0.borrow_mut()
-    }
-
     pub fn get_db_file_path(&self) -> PathBuf {
         self.0
             .borrow()
@@ -123,8 +116,19 @@ impl Config {
         ASSETS_DIR_NAME
     }
 
-    pub fn is_dirty(&self) -> bool {
-        self.0.borrow().is_dirty
+    pub fn write(&self) {
+        let data = self.0.borrow();
+        if data.is_dirty {
+            let toml = toml::to_string(&*data).unwrap();
+            let mut file = std::fs::File::create(data.get_config_file_path()).unwrap();
+            file.write_all(toml.as_bytes()).unwrap();
+        }
+    }
+}
+
+impl ConfigData {
+    fn get_config_file_path(&self) -> PathBuf {
+        self.app_path.join(CONFIG_FILE_NAME)
     }
 }
 
