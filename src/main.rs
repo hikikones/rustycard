@@ -19,7 +19,7 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-        let db = Database::new(cfg.borrow().get_app_db_file_path());
+        let db = Database::new(cfg.get_app_db_file_path());
         cx.provide_context(cfg);
         cx.provide_context(db);
     });

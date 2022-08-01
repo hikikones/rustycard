@@ -72,55 +72,59 @@ impl Config {
     pub fn borrow_mut<'a>(&'a self) -> RefMut<'a, ConfigData> {
         self.0.borrow_mut()
     }
-}
 
-impl ConfigData {
     pub fn get_db_file_path(&self) -> PathBuf {
-        self.custom_db_file_path
+        self.0
+            .borrow()
+            .custom_db_file_path
             .to_owned()
             .unwrap_or(self.get_app_db_file_path())
     }
 
     pub fn get_app_db_file_path(&self) -> PathBuf {
-        self.app_path.join(DB_FILE_NAME)
+        self.0.borrow().app_path.join(DB_FILE_NAME)
     }
 
     pub fn get_custom_db_file_path(&self) -> Option<PathBuf> {
-        self.custom_db_file_path.to_owned()
+        self.0.borrow().custom_db_file_path.to_owned()
     }
 
-    pub fn set_custom_db_file_path(&mut self, path: impl AsRef<Path>) {
+    pub fn set_custom_db_file_path(&self, path: impl AsRef<Path>) {
         assert!(path.as_ref().is_file());
-        self.custom_db_file_path = Some(path.as_ref().to_path_buf());
-        self.is_dirty = true;
+        let mut data = self.0.borrow_mut();
+        data.custom_db_file_path = Some(path.as_ref().to_path_buf());
+        data.is_dirty = true;
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
-        self.custom_assets_dir_path
+        self.0
+            .borrow()
+            .custom_assets_dir_path
             .to_owned()
             .unwrap_or(self.get_app_assets_dir_path())
     }
 
     pub fn get_app_assets_dir_path(&self) -> PathBuf {
-        self.app_path.join(ASSETS_DIR_NAME)
+        self.0.borrow().app_path.join(ASSETS_DIR_NAME)
     }
 
     pub fn get_custom_assets_dir_path(&self) -> Option<PathBuf> {
-        self.custom_assets_dir_path.to_owned()
+        self.0.borrow().custom_assets_dir_path.to_owned()
     }
 
-    pub fn set_custom_assets_dir_path(&mut self, path: impl AsRef<Path>) {
+    pub fn set_custom_assets_dir_path(&self, path: impl AsRef<Path>) {
         assert!(path.as_ref().is_dir());
-        self.custom_assets_dir_path = Some(path.as_ref().to_path_buf());
-        self.is_dirty = true;
+        let mut data = self.0.borrow_mut();
+        data.custom_assets_dir_path = Some(path.as_ref().to_path_buf());
+        data.is_dirty = true;
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
         ASSETS_DIR_NAME
     }
 
-    pub const fn is_dirty(&self) -> bool {
-        self.is_dirty
+    pub fn is_dirty(&self) -> bool {
+        self.0.borrow().is_dirty
     }
 }
 
