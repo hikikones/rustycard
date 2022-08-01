@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use dioxus::prelude::*;
 use native_dialog::FileDialog;
 
@@ -7,7 +5,7 @@ use crate::services::config::Config;
 
 #[allow(non_snake_case)]
 pub fn Settings(cx: Scope) -> Element {
-    let cfg = &*cx.use_hook(|_| RefCell::new(cx.consume_context::<Config>().unwrap()));
+    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
     let db_path = use_state(&cx, || {
         cfg.borrow().get_db_file_path().display().to_string()
     });

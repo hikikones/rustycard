@@ -27,12 +27,12 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                     let ext = path.extension().unwrap().to_str().unwrap();
                     let filename = format!("{:x}.{}", digest, ext);
 
-                    let target_path = &cfg.get_assets_dir_path().join(&filename);
+                    let target_path = &cfg.borrow().get_assets_dir_path().join(&filename);
                     if !Path::exists(target_path) {
                         std::fs::copy(path, target_path).unwrap();
                     }
 
-                    let img = cfg.get_assets_dir_name().to_owned() + "/" + &filename;
+                    let img = cfg.borrow().get_assets_dir_name().to_owned() + "/" + &filename;
                     content.make_mut().push_str(&format!("\n![]({img})"));
                 }
             },
