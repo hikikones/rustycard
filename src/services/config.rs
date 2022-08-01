@@ -16,6 +16,7 @@ pub struct ConfigData {
     app_path: PathBuf,
     version: usize,
     custom_db_file_path: Option<PathBuf>,
+    custom_assets_dir_path: Option<PathBuf>,
 }
 
 impl Default for ConfigData {
@@ -24,6 +25,7 @@ impl Default for ConfigData {
             app_path: std::env::current_dir().unwrap(),
             version: 1,
             custom_db_file_path: None,
+            custom_assets_dir_path: None,
         }
     }
 }
@@ -77,11 +79,29 @@ impl Config {
     }
 
     pub fn set_custom_db_file_path(&self, path: impl AsRef<Path>) {
+        assert!(path.as_ref().is_file());
         self.0.borrow_mut().custom_db_file_path = Some(path.as_ref().to_path_buf());
     }
 
     pub fn get_assets_dir_path(&self) -> PathBuf {
+        self.0
+            .borrow()
+            .custom_assets_dir_path
+            .to_owned()
+            .unwrap_or(self.get_app_assets_dir_path())
+    }
+
+    pub fn get_app_assets_dir_path(&self) -> PathBuf {
         self.0.borrow().app_path.join(ASSETS_DIR_NAME)
+    }
+
+    pub fn get_custom_assets_dir_path(&self) -> Option<PathBuf> {
+        self.0.borrow().custom_assets_dir_path.to_owned()
+    }
+
+    pub fn set_custom_assets_dir_path(&self, path: impl AsRef<Path>) {
+        assert!(path.as_ref().is_dir());
+        self.0.borrow_mut().custom_assets_dir_path = Some(path.as_ref().to_path_buf());
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
