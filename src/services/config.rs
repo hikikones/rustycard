@@ -16,8 +16,8 @@ pub struct ConfigData {
     #[serde(skip)]
     app_path: PathBuf,
     version: usize,
-    custom_db_file_path: Option<PathBuf>,
-    custom_assets_dir_path: Option<PathBuf>,
+    db_file: Option<PathBuf>,
+    assets_dir: Option<PathBuf>,
     #[serde(skip)]
     is_dirty: bool,
 }
@@ -27,8 +27,8 @@ impl Default for ConfigData {
         Self {
             app_path: std::env::current_dir().unwrap(),
             version: 1,
-            custom_db_file_path: None,
-            custom_assets_dir_path: None,
+            db_file: None,
+            assets_dir: None,
             is_dirty: false,
         }
     }
@@ -51,9 +51,15 @@ impl Config {
                 if let Some(version) = version.as_integer() {
                     match version {
                         1 => {
-                            if let Some(location) = table.get("location") {
-                                if let Some(location) = location.as_str() {
-                                    cfg.custom_db_file_path = Some(PathBuf::from(location));
+                            if let Some(db_file) = table.get("db_file") {
+                                if let Some(db_file) = db_file.as_str() {
+                                    cfg.db_file = Some(PathBuf::from(db_file));
+                                }
+                            }
+
+                            if let Some(assets_dir) = table.get("assets_dir") {
+                                if let Some(assets_dir) = assets_dir.as_str() {
+                                    cfg.assets_dir = Some(PathBuf::from(assets_dir));
                                 }
                             }
                         }
@@ -66,49 +72,47 @@ impl Config {
         Self(Rc::new(RefCell::new(cfg)))
     }
 
-    pub fn get_db_file_path(&self) -> PathBuf {
+    pub fn get_db_file(&self) -> PathBuf {
         self.0
             .borrow()
-            .custom_db_file_path
+            .db_file
             .to_owned()
-            .unwrap_or(self.get_app_db_file_path())
+            .unwrap_or(self.get_app_db_file())
     }
 
-    pub fn get_app_db_file_path(&self) -> PathBuf {
+    pub fn get_app_db_file(&self) -> PathBuf {
         self.0.borrow().app_path.join(DB_FILE_NAME)
     }
 
-    pub fn get_custom_db_file_path(&self) -> Option<PathBuf> {
-        self.0.borrow().custom_db_file_path.to_owned()
+    pub fn get_custom_db_file(&self) -> Option<PathBuf> {
+        self.0.borrow().db_file.to_owned()
     }
 
-    pub fn set_custom_db_file_path(&self, path: impl AsRef<Path>) {
-        assert!(path.as_ref().is_file());
+    pub fn set_custom_db_file(&self, path: impl AsRef<Path>) {
         let mut data = self.0.borrow_mut();
-        data.custom_db_file_path = Some(path.as_ref().to_path_buf());
+        data.db_file = Some(path.as_ref().to_path_buf());
         data.is_dirty = true;
     }
 
-    pub fn get_assets_dir_path(&self) -> PathBuf {
+    pub fn get_assets_dir(&self) -> PathBuf {
         self.0
             .borrow()
-            .custom_assets_dir_path
+            .assets_dir
             .to_owned()
-            .unwrap_or(self.get_app_assets_dir_path())
+            .unwrap_or(self.get_app_assets_dir())
     }
 
-    pub fn get_app_assets_dir_path(&self) -> PathBuf {
+    pub fn get_app_assets_dir(&self) -> PathBuf {
         self.0.borrow().app_path.join(ASSETS_DIR_NAME)
     }
 
-    pub fn get_custom_assets_dir_path(&self) -> Option<PathBuf> {
-        self.0.borrow().custom_assets_dir_path.to_owned()
+    pub fn get_custom_assets_dir(&self) -> Option<PathBuf> {
+        self.0.borrow().assets_dir.to_owned()
     }
 
-    pub fn set_custom_assets_dir_path(&self, path: impl AsRef<Path>) {
-        assert!(path.as_ref().is_dir());
+    pub fn set_custom_assets_dir(&self, path: impl AsRef<Path>) {
         let mut data = self.0.borrow_mut();
-        data.custom_assets_dir_path = Some(path.as_ref().to_path_buf());
+        data.assets_dir = Some(path.as_ref().to_path_buf());
         data.is_dirty = true;
     }
 
@@ -120,14 +124,14 @@ impl Config {
         let data = self.0.borrow();
         if data.is_dirty {
             let toml = toml::to_string(&*data).unwrap();
-            let mut file = std::fs::File::create(data.get_config_file_path()).unwrap();
+            let mut file = std::fs::File::create(data.get_config_file()).unwrap();
             file.write_all(toml.as_bytes()).unwrap();
         }
     }
 }
 
 impl ConfigData {
-    fn get_config_file_path(&self) -> PathBuf {
+    fn get_config_file(&self) -> PathBuf {
         self.app_path.join(CONFIG_FILE_NAME)
     }
 }
