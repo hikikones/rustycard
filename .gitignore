@@ -1,4 +1,8 @@
 /target
+
+# App
 /assets
-*.sqlite3
-*.db
+dev.db
+dev.toml
+config.toml
+rustycard.db
