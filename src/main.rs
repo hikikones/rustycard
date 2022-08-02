@@ -1,16 +1,10 @@
-use std::cell::RefCell;
-
 use dioxus::{desktop::use_window, prelude::*};
 
-use services::{config::Config, database::Database, ServiceLocator};
+use services::{config::Config, database::Database};
 
 mod components;
 mod pages;
 mod services;
-
-thread_local! {
-    static SERVICES: RefCell<ServiceLocator> = RefCell::new(ServiceLocator::new());
-}
 
 fn main() {
     dioxus::desktop::launch(app);
