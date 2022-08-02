@@ -1,5 +1,3 @@
--- TODO: Metadata table for version number.
-
 CREATE TABLE cards (
     card_id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,

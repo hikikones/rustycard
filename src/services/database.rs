@@ -2,12 +2,14 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, Error, Params, Row};
 
+const VERSION: usize = 1;
+
 pub type Id = usize;
 
 #[derive(Clone)]
-pub struct Database(Rc<RefCell<_Db>>);
+pub struct Database(Rc<RefCell<Rusqlite>>);
 
-pub struct _Db {
+pub struct Rusqlite {
     connection: Connection,
     is_dirty: bool,
 }
@@ -35,22 +37,33 @@ pub struct Tag {
 
 impl Database {
     pub fn new(path: impl AsRef<Path>) -> Self {
-        let file_exists = path.as_ref().exists();
         let conn = match Connection::open(&path) {
             Ok(conn) => conn,
             Err(err) => panic!("{err}"),
         };
 
-        if !file_exists {
-            conn.execute_batch(include_str!("schema.sql")).unwrap();
-        }
-
-        // TODO: Metadata table, check version
-
-        Self(Rc::new(RefCell::new(_Db {
+        let db = Self(Rc::new(RefCell::new(Rusqlite {
             connection: conn,
             is_dirty: false,
-        })))
+        })));
+
+        match db.get_version() {
+            0 => {
+                // New database
+                db.write_batch(include_str!("schema.sql"));
+                db.set_version(VERSION);
+            }
+            VERSION => {
+                // Current version
+                println!("\nCURRENT!\n");
+            }
+            _ => {
+                // Unknown version
+                panic!("Unknown database version");
+            }
+        }
+
+        db
     }
 
     pub fn get_card(&self, id: Id) -> Card {
@@ -254,17 +267,32 @@ impl Database {
     }
 
     fn write(&self, sql: &str, params: impl Params) -> usize {
-        match self.0.borrow().connection.execute(sql, params) {
-            Ok(changed_rows) => {
-                self.0.borrow_mut().is_dirty = true;
-                changed_rows
-            }
+        let rows = match self.0.borrow().connection.execute(sql, params) {
+            Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
-        }
+        };
+        self.0.borrow_mut().is_dirty = true;
+        rows
+    }
+
+    fn write_batch(&self, sql: &str) {
+        self.0.borrow().connection.execute_batch(sql).unwrap();
+        self.0.borrow_mut().is_dirty = true;
     }
 
     pub fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty
+    }
+
+    fn get_version(&self) -> usize {
+        self.read_single("SELECT user_version FROM pragma_user_version", [], |row| {
+            row.get(0).unwrap()
+        })
+        .unwrap()
+    }
+
+    fn set_version(&self, version: usize) {
+        self.write(&format!("PRAGMA user_version = {version}"), []);
     }
 }
 
