@@ -38,16 +38,9 @@ trait FromRow {
 
 impl Database {
     pub fn new(cfg: &Config) -> Self {
-        let app_db_file = cfg.get_app_db_file();
-        if let Some(custom_db_file) = cfg.get_custom_db_file() {
-            if sync_file(&custom_db_file, &app_db_file) {
-                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                    sync_dir(&custom_assets_dir, &cfg.get_app_assets_dir());
-                }
-            }
-        }
+        sync(SyncDirection::Open, &cfg);
 
-        let conn = match Connection::open(&app_db_file) {
+        let conn = match Connection::open(&cfg.get_app_db_file()) {
             Ok(conn) => conn,
             Err(err) => panic!("{err}"),
         };
@@ -262,13 +255,7 @@ impl Database {
     }
 
     pub fn save(&self, cfg: &Config) {
-        if let Some(custom_db_file) = cfg.get_custom_db_file() {
-            if sync_file(&cfg.get_app_db_file(), &custom_db_file) {
-                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                    sync_dir(&cfg.get_app_assets_dir(), &custom_assets_dir);
-                }
-            }
-        }
+        sync(SyncDirection::Close, &cfg);
     }
 
     fn get_version(&self) -> usize {
@@ -308,6 +295,29 @@ impl FromRow for Tag {
 impl FromRow for usize {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
+    }
+}
+
+enum SyncDirection {
+    Open,
+    Close,
+}
+
+fn sync(direction: SyncDirection, cfg: &Config) {
+    if let Some(custom_db_file) = cfg.get_custom_db_file() {
+        let db_file = match direction {
+            SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
+            SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
+        };
+        if sync_file(&db_file.0, &db_file.1) {
+            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                let assets_dir = match direction {
+                    SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
+                    SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
+                };
+                sync_dir(&assets_dir.0, &assets_dir.1);
+            }
+        }
     }
 }
 
