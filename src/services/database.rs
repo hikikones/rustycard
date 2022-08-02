@@ -1,6 +1,8 @@
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, Error, Params, Row};
+
+use super::config::Config;
 
 const VERSION: usize = 1;
 
@@ -36,8 +38,17 @@ pub struct Tag {
 }
 
 impl Database {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        let conn = match Connection::open(&path) {
+    pub fn new(cfg: &Config) -> Self {
+        let app_db_file = cfg.get_app_db_file();
+        if let Some(custom_db_file) = cfg.get_custom_db_file() {
+            if sync_file(&custom_db_file, &app_db_file) {
+                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                    sync_dir(&custom_assets_dir, &cfg.get_app_assets_dir());
+                }
+            }
+        }
+
+        let conn = match Connection::open(&app_db_file) {
             Ok(conn) => conn,
             Err(err) => panic!("{err}"),
         };
@@ -282,6 +293,16 @@ impl Database {
         self.0.borrow().is_dirty
     }
 
+    pub fn save(&self, cfg: &Config) {
+        if let Some(custom_db_file) = cfg.get_custom_db_file() {
+            if sync_file(&cfg.get_app_db_file(), &custom_db_file) {
+                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                    sync_dir(&cfg.get_app_assets_dir(), &custom_assets_dir);
+                }
+            }
+        }
+    }
+
     fn get_version(&self) -> usize {
         self.read_single("SELECT user_version FROM pragma_user_version", [], |row| {
             row.get(0).unwrap()
@@ -315,5 +336,53 @@ impl From<&Row<'_>> for Tag {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),
         }
+    }
+}
+
+fn sync_file(file: &Path, other: &Path) -> bool {
+    if !other.exists() {
+        std::fs::copy(file, other).unwrap();
+        return true;
+    }
+
+    let f1 = std::fs::File::open(file).unwrap();
+    let f2 = std::fs::File::open(other).unwrap();
+
+    let m1 = f1.metadata().unwrap();
+    let m2 = f2.metadata().unwrap();
+
+    if m1.len() == m2.len() {
+        return false;
+    }
+
+    if m1.modified().unwrap() <= m2.modified().unwrap() {
+        return false;
+    }
+
+    // Newer file. Copy over.
+    std::fs::copy(file, other).unwrap();
+
+    true
+}
+
+fn sync_dir(dir: &Path, other: &Path) {
+    fn get_file_names(d: &Path) -> HashSet<OsString> {
+        std::fs::read_dir(d)
+            .unwrap()
+            .map(|p| p.unwrap().file_name())
+            .collect()
+    }
+
+    let d1 = get_file_names(dir);
+    let d2 = get_file_names(other);
+
+    // Copy over missing files
+    for filename in d1.difference(&d2) {
+        std::fs::copy(dir.join(filename), other.join(filename)).unwrap();
+    }
+
+    // Remove non-existent files
+    for filename in d2.difference(&d1) {
+        std::fs::remove_file(other.join(filename)).unwrap();
     }
 }

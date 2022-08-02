@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashSet, fs::File, path::Path};
+use std::cell::RefCell;
 
 use dioxus::{desktop::use_window, prelude::*};
 
@@ -19,17 +19,7 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-
-        let app_db_file = cfg.get_app_db_file();
-        if let Some(custom_db_file) = cfg.get_custom_db_file() {
-            if sync_file(&custom_db_file, &app_db_file) {
-                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                    sync_dir(&custom_assets_dir, &cfg.get_app_assets_dir());
-                }
-            }
-        }
-
-        let db = Database::new(&app_db_file);
+        let db = Database::new(&cfg);
         cx.provide_context(cfg);
         cx.provide_context(db);
     });
@@ -50,17 +40,8 @@ fn app(cx: Scope) -> Element {
             }
             button {
                 onclick: move |_| {
-                    cfg.write();
-
-                    if db.is_dirty() {
-                        if let Some(custom_db_file) = cfg.get_custom_db_file() {
-                            std::fs::copy(&cfg.get_app_db_file(), &custom_db_file).unwrap();
-                            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                                sync_dir(&cfg.get_app_assets_dir(), &custom_assets_dir);
-                            }
-                        }
-                    }
-
+                    cfg.save();
+                    db.save(cfg);
                     window.close();
                 },
                 "Quit"
@@ -73,51 +54,4 @@ fn app(cx: Scope) -> Element {
             Redirect { from: "", to: "/review" }
         }
     })
-}
-
-fn sync_file(file: &Path, target: &Path) -> bool {
-    if !target.exists() {
-        std::fs::copy(file, target).unwrap();
-        return true;
-    }
-
-    let f1 = File::open(file).unwrap();
-    let f2 = File::open(target).unwrap();
-
-    let m1 = f1.metadata().unwrap();
-    let m2 = f2.metadata().unwrap();
-
-    if m1.len() == m2.len() {
-        return false;
-    }
-
-    if m1.modified().unwrap() <= m2.modified().unwrap() {
-        return false;
-    }
-
-    // Newer file. Copy over.
-    std::fs::copy(file, target).unwrap();
-
-    true
-}
-
-fn sync_dir(dir: &Path, target: &Path) {
-    let d1 = std::fs::read_dir(dir)
-        .unwrap()
-        .map(|p| p.unwrap().file_name())
-        .collect::<HashSet<_>>();
-    let d2 = std::fs::read_dir(target)
-        .unwrap()
-        .map(|p| p.unwrap().file_name())
-        .collect::<HashSet<_>>();
-
-    // Copy over missing files to target
-    for filename in d1.difference(&d2) {
-        std::fs::copy(dir.join(filename), target.join(filename)).unwrap();
-    }
-
-    // Remove non-existent files in target
-    for filename in d2.difference(&d1) {
-        std::fs::remove_file(target.join(filename)).unwrap();
-    }
 }

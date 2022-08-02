@@ -132,7 +132,7 @@ impl Config {
         ASSETS_DIR_NAME
     }
 
-    pub fn write(&self) {
+    pub fn save(&self) {
         let data = self.0.borrow();
         if data.is_dirty {
             let toml = toml::to_string(&*data).unwrap();
