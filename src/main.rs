@@ -78,6 +78,11 @@ fn app(cx: Scope) -> Element {
 }
 
 fn sync_file(file: &Path, target: &Path) -> bool {
+    if !target.exists() {
+        std::fs::copy(file, target).unwrap();
+        return true;
+    }
+
     let f1 = File::open(file).unwrap();
     let f2 = File::open(target).unwrap();
 

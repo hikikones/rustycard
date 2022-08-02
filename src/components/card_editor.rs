@@ -27,7 +27,7 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                     let ext = path.extension().unwrap().to_str().unwrap();
                     let filename = format!("{:x}.{}", digest, ext);
 
-                    let target_path = &cfg.get_assets_dir().join(&filename);
+                    let target_path = &cfg.get_app_assets_dir().join(&filename);
                     if !Path::exists(target_path) {
                         std::fs::copy(path, target_path).unwrap();
                     }
