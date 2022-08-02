@@ -120,6 +120,7 @@ fn sync_dir(dir: &Path, target: &Path) {
     for filename in d1.difference(&d2) {
         //todo
         println!("{:?}", filename);
+        std::fs::copy(dir.join(filename), target.join(filename)).unwrap();
     }
 
     // Delete non-existent files in d2
@@ -127,5 +128,6 @@ fn sync_dir(dir: &Path, target: &Path) {
     for filename in d2.difference(&d1) {
         //todo
         println!("{:?}", filename);
+        std::fs::remove_file(target.join(filename)).unwrap();
     }
 }
