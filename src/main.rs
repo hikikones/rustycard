@@ -1,4 +1,6 @@
-use dioxus::prelude::*;
+use dioxus::{desktop::use_window, prelude::*};
+
+use services::{config::Config, database::Database};
 
 mod components;
 mod pages;
@@ -10,11 +12,15 @@ fn main() {
 
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
-        let cfg = services::config::Config::new();
-        let db = services::database::Database::new(cfg.get_db_file_path());
+        let cfg = Config::new();
+        let db = Database::new(&cfg);
         cx.provide_context(cfg);
         cx.provide_context(db);
     });
+
+    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
+    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let window = use_window(&cx);
 
     cx.render(rsx! {
         Router {
@@ -24,11 +30,21 @@ fn app(cx: Scope) -> Element {
                 Link { to: "/cards", li { "Cards"  }}
                 Link { to: "/add_card", li { "Add card"  }}
                 Link { to: "/edit_card/1", li { "Edit card"  }}
+                Link { to: "/settings", li { "Settings"  }}
+            }
+            button {
+                onclick: move |_| {
+                    cfg.save();
+                    db.save(cfg);
+                    window.close();
+                },
+                "Quit"
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
             Route { to: "/add_card", pages::AddCard {} }
             Route { to: "/edit_card/:id", pages::EditCard {} }
+            Route { to: "/settings", pages::Settings {} }
             Redirect { from: "", to: "/review" }
         }
     })

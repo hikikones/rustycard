@@ -1,21 +1,24 @@
-use std::{path::Path, rc::Rc};
+use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
-use rusqlite::{params, params_from_iter, Connection, Error, OpenFlags, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, Params, Row};
+
+use super::config::Config;
+
+const VERSION: usize = 1;
 
 pub type Id = usize;
 
 #[derive(Clone)]
-pub struct Database {
-    connection: Rc<Connection>,
-}
+pub struct Database(Rc<Connection>);
 
+#[derive(Debug)]
 pub struct Card {
     pub id: Id,
     pub content: String,
     pub review: CardReview,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CardReview {
     pub due_date: chrono::NaiveDate,
     pub due_days: usize,
@@ -23,49 +26,52 @@ pub struct CardReview {
     pub successful_recalls: usize,
 }
 
+#[derive(Debug)]
 pub struct Tag {
     pub id: Id,
     pub name: String,
 }
 
+trait FromRow {
+    fn from_row(row: &Row) -> Self;
+}
+
 impl Database {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
-            Ok(conn) => Self {
-                connection: Rc::new(conn),
-            },
-            Err(_) => {
-                // Database not found. Create one.
-                match Connection::open(&path) {
-                    Ok(conn) => {
-                        // TODO: Assets path.
-                        conn.execute_batch(include_str!("schema.sql")).unwrap();
-                        Self {
-                            connection: Rc::new(conn),
-                        }
-                    }
-                    Err(err) => {
-                        panic!("Error opening database: {}", err)
-                    }
-                }
+    pub fn new(cfg: &Config) -> Self {
+        sync(SyncDirection::Open, &cfg);
+
+        let conn = match Connection::open(&cfg.get_app_db_file()) {
+            Ok(conn) => conn,
+            Err(err) => panic!("{err}"),
+        };
+
+        let db = Self(Rc::new(conn));
+
+        match db.get_version() {
+            // New database
+            0 => {
+                db.write_batch(include_str!("schema.sql"));
+                db.set_version(VERSION);
+            }
+            // Current version
+            VERSION => {}
+            // Unknown version
+            _ => {
+                panic!("Unknown database version");
             }
         }
+
+        db
     }
 
     pub fn get_card(&self, id: Id) -> Card {
         assert!(id != 0);
-        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id], |row| {
-            row.into()
-        })
-        .unwrap()
+        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
+            .unwrap()
     }
 
     pub fn get_cards(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
-        self.read("SELECT * FROM cards", [], |row| {
-            cards.push(row.into());
-        });
-        cards
+        self.read("SELECT * FROM cards", [])
     }
 
     pub fn get_cards_with_tags(&self, tags: &[Id]) -> Vec<Card> {
@@ -73,7 +79,6 @@ impl Database {
             return self.get_cards();
         }
 
-        let mut cards = Vec::new();
         self.read(
             &format!(
                 r#"
@@ -87,15 +92,10 @@ impl Database {
                 tags.len()
             ),
             params_from_iter(tags.iter()),
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn get_cards_without_tags(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
         self.read(
             r#"
                 SELECT * FROM cards c WHERE NOT EXISTS (
@@ -104,11 +104,7 @@ impl Database {
                 )
                 "#,
             [],
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn _get_due_card_random(&self) -> Option<Card> {
@@ -120,13 +116,10 @@ impl Database {
             LIMIT 1
             "#,
             [],
-            |row| row.into(),
         )
-        .ok()
     }
 
     pub fn get_due_cards(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
         self.read(
             r#"
             SELECT * FROM cards
@@ -134,11 +127,7 @@ impl Database {
             ORDER BY due_date ASC
             "#,
             [],
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn _get_due_cards_count(&self) -> usize {
@@ -148,7 +137,6 @@ impl Database {
             WHERE due_date <= (date('now'))
             "#,
             [],
-            |row| row.get(0).unwrap(),
         )
         .unwrap()
     }
@@ -190,18 +178,12 @@ impl Database {
 
     pub fn _get_tag(&self, id: Id) -> Tag {
         assert!(id != 0);
-        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id], |row| {
-            row.into()
-        })
-        .unwrap()
+        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
+            .unwrap()
     }
 
     pub fn get_tags(&self) -> Vec<Tag> {
-        let mut tags = Vec::new();
-        self.read("SELECT * FROM tags", [], |row| {
-            tags.push(row.into());
-        });
-        tags
+        self.read("SELECT * FROM tags", [])
     }
 
     pub fn _create_tag(&self, name: &str) -> Id {
@@ -222,43 +204,72 @@ impl Database {
     }
 
     fn last_insert_rowid(&self) -> Id {
-        let id = self.connection.last_insert_rowid();
+        let id = self.0.last_insert_rowid();
         id.try_into().unwrap()
     }
 
-    fn read_single<T>(
-        &self,
-        sql: &str,
-        params: impl Params,
-        f: impl FnOnce(&Row) -> T,
-    ) -> Result<T, Error> {
-        self.connection.query_row(sql, params, |row| Ok(f(row)))
+    fn read_single<T, P>(&self, sql: &str, params: P) -> Option<T>
+    where
+        T: FromRow,
+        P: Params,
+    {
+        self.0
+            .query_row(sql, params, |row| Ok(T::from_row(row)))
+            .ok()
     }
 
-    fn read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
-        match self.connection.prepare(sql) {
+    fn read<T, P>(&self, sql: &str, params: P) -> Vec<T>
+    where
+        T: FromRow,
+        P: Params,
+    {
+        let mut items = Vec::new();
+
+        match self.0.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
-                        f(row);
+                        items.push(T::from_row(row));
                     }
                 }
                 Err(err) => panic!("{err}"),
             },
             Err(err) => panic!("{err}"),
         };
+
+        items
     }
 
-    fn write(&self, sql: &str, params: impl Params) -> usize {
-        match self.connection.execute(sql, params) {
+    fn write<P>(&self, sql: &str, params: P) -> usize
+    where
+        P: Params,
+    {
+        match self.0.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
         }
     }
+
+    fn write_batch(&self, sql: &str) {
+        self.0.execute_batch(sql).unwrap();
+    }
+
+    pub fn save(&self, cfg: &Config) {
+        sync(SyncDirection::Close, &cfg);
+    }
+
+    fn get_version(&self) -> usize {
+        self.read_single("SELECT user_version FROM pragma_user_version", [])
+            .unwrap()
+    }
+
+    fn set_version(&self, version: usize) {
+        self.write(&format!("PRAGMA user_version = {version}"), []);
+    }
 }
 
-impl From<&Row<'_>> for Card {
-    fn from(row: &Row) -> Self {
+impl FromRow for Card {
+    fn from_row(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
@@ -272,11 +283,88 @@ impl From<&Row<'_>> for Card {
     }
 }
 
-impl From<&Row<'_>> for Tag {
-    fn from(row: &Row<'_>) -> Self {
+impl FromRow for Tag {
+    fn from_row(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),
         }
+    }
+}
+
+impl FromRow for usize {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
+    }
+}
+
+enum SyncDirection {
+    Open,
+    Close,
+}
+
+fn sync(direction: SyncDirection, cfg: &Config) {
+    if let Some(custom_db_file) = cfg.get_custom_db_file() {
+        let db_file = match direction {
+            SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
+            SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
+        };
+        if sync_file(&db_file.0, &db_file.1) {
+            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                let assets_dir = match direction {
+                    SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
+                    SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
+                };
+                sync_dir(&assets_dir.0, &assets_dir.1);
+            }
+        }
+    }
+}
+
+fn sync_file(file: &Path, other: &Path) -> bool {
+    if !other.exists() {
+        std::fs::copy(file, other).unwrap();
+        return true;
+    }
+
+    let f1 = std::fs::File::open(file).unwrap();
+    let f2 = std::fs::File::open(other).unwrap();
+
+    let m1 = f1.metadata().unwrap();
+    let m2 = f2.metadata().unwrap();
+
+    if m1.len() == m2.len() {
+        return false;
+    }
+
+    if m1.modified().unwrap() <= m2.modified().unwrap() {
+        return false;
+    }
+
+    // Newer file. Copy over.
+    std::fs::copy(file, other).unwrap();
+
+    true
+}
+
+fn sync_dir(dir: &Path, other: &Path) {
+    fn get_file_names(d: &Path) -> HashSet<OsString> {
+        std::fs::read_dir(d)
+            .unwrap()
+            .map(|p| p.unwrap().file_name())
+            .collect()
+    }
+
+    let d1 = get_file_names(dir);
+    let d2 = get_file_names(other);
+
+    // Copy over missing files
+    for filename in d1.difference(&d2) {
+        std::fs::copy(dir.join(filename), other.join(filename)).unwrap();
+    }
+
+    // Remove non-existent files
+    for filename in d2.difference(&d1) {
+        std::fs::remove_file(other.join(filename)).unwrap();
     }
 }
