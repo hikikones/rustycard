@@ -52,8 +52,6 @@ fn app(cx: Scope) -> Element {
                 onclick: move |_| {
                     cfg.write();
 
-                    println!("\n\nIS_DIRTY: {}\n\n", db.is_dirty());
-
                     if db.is_dirty() {
                         if let Some(custom_db_file) = cfg.get_custom_db_file() {
                             std::fs::copy(&cfg.get_app_db_file(), &custom_db_file).unwrap();
@@ -104,8 +102,6 @@ fn sync_file(file: &Path, target: &Path) -> bool {
 }
 
 fn sync_dir(dir: &Path, target: &Path) {
-    dbg!(dir);
-    dbg!(target);
     let d1 = std::fs::read_dir(dir)
         .unwrap()
         .map(|p| p.unwrap().file_name())
@@ -115,19 +111,13 @@ fn sync_dir(dir: &Path, target: &Path) {
         .map(|p| p.unwrap().file_name())
         .collect::<HashSet<_>>();
 
-    // Copy over missing files to d2
-    println!("\nCOPY");
+    // Copy over missing files to target
     for filename in d1.difference(&d2) {
-        //todo
-        println!("{:?}", filename);
         std::fs::copy(dir.join(filename), target.join(filename)).unwrap();
     }
 
-    // Delete non-existent files in d2
-    println!("\n\nDELETE");
+    // Remove non-existent files in target
     for filename in d2.difference(&d1) {
-        //todo
-        println!("{:?}", filename);
         std::fs::remove_file(target.join(filename)).unwrap();
     }
 }
