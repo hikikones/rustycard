@@ -1,6 +1,6 @@
 use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
-use rusqlite::{params, params_from_iter, Connection, Error, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
 use super::config::Config;
 
@@ -30,6 +30,10 @@ pub struct CardReview {
 pub struct Tag {
     pub id: Id,
     pub name: String,
+}
+
+trait FromRow {
+    fn from_row(row: &Row) -> Self;
 }
 
 impl Database {
@@ -69,18 +73,12 @@ impl Database {
 
     pub fn get_card(&self, id: Id) -> Card {
         assert!(id != 0);
-        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id], |row| {
-            row.into()
-        })
-        .unwrap()
+        self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
+            .unwrap()
     }
 
     pub fn get_cards(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
-        self.read("SELECT * FROM cards", [], |row| {
-            cards.push(row.into());
-        });
-        cards
+        self.read("SELECT * FROM cards", [])
     }
 
     pub fn get_cards_with_tags(&self, tags: &[Id]) -> Vec<Card> {
@@ -88,7 +86,6 @@ impl Database {
             return self.get_cards();
         }
 
-        let mut cards = Vec::new();
         self.read(
             &format!(
                 r#"
@@ -102,15 +99,10 @@ impl Database {
                 tags.len()
             ),
             params_from_iter(tags.iter()),
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn get_cards_without_tags(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
         self.read(
             r#"
                 SELECT * FROM cards c WHERE NOT EXISTS (
@@ -119,11 +111,7 @@ impl Database {
                 )
                 "#,
             [],
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn _get_due_card_random(&self) -> Option<Card> {
@@ -135,13 +123,10 @@ impl Database {
             LIMIT 1
             "#,
             [],
-            |row| row.into(),
         )
-        .ok()
     }
 
     pub fn get_due_cards(&self) -> Vec<Card> {
-        let mut cards = Vec::new();
         self.read(
             r#"
             SELECT * FROM cards
@@ -149,11 +134,7 @@ impl Database {
             ORDER BY due_date ASC
             "#,
             [],
-            |row| {
-                cards.push(row.into());
-            },
-        );
-        cards
+        )
     }
 
     pub fn _get_due_cards_count(&self) -> usize {
@@ -163,7 +144,6 @@ impl Database {
             WHERE due_date <= (date('now'))
             "#,
             [],
-            |row| row.get(0).unwrap(),
         )
         .unwrap()
     }
@@ -205,18 +185,12 @@ impl Database {
 
     pub fn _get_tag(&self, id: Id) -> Tag {
         assert!(id != 0);
-        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id], |row| {
-            row.into()
-        })
-        .unwrap()
+        self.read_single("SELECT * FROM tags WHERE tag_id = ?", [id])
+            .unwrap()
     }
 
     pub fn get_tags(&self) -> Vec<Tag> {
-        let mut tags = Vec::new();
-        self.read("SELECT * FROM tags", [], |row| {
-            tags.push(row.into());
-        });
-        tags
+        self.read("SELECT * FROM tags", [])
     }
 
     pub fn _create_tag(&self, name: &str) -> Id {
@@ -241,30 +215,42 @@ impl Database {
         id.try_into().unwrap()
     }
 
-    fn read_single<T>(
-        &self,
-        sql: &str,
-        params: impl Params,
-        f: impl FnOnce(&Row) -> T,
-    ) -> Result<T, Error> {
-        self.0.query_row(sql, params, |row| Ok(f(row)))
+    fn read_single<T, P>(&self, sql: &str, params: P) -> Option<T>
+    where
+        T: FromRow,
+        P: Params,
+    {
+        self.0
+            .query_row(sql, params, |row| Ok(T::from_row(row)))
+            .ok()
     }
 
-    fn read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
+    fn read<T, P>(&self, sql: &str, params: P) -> Vec<T>
+    where
+        T: FromRow,
+        P: Params,
+    {
+        let mut items = Vec::new();
+
         match self.0.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
-                        f(row);
+                        items.push(T::from_row(row));
                     }
                 }
                 Err(err) => panic!("{err}"),
             },
             Err(err) => panic!("{err}"),
         };
+
+        items
     }
 
-    fn write(&self, sql: &str, params: impl Params) -> usize {
+    fn write<P>(&self, sql: &str, params: P) -> usize
+    where
+        P: Params,
+    {
         match self.0.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
@@ -286,10 +272,8 @@ impl Database {
     }
 
     fn get_version(&self) -> usize {
-        self.read_single("SELECT user_version FROM pragma_user_version", [], |row| {
-            row.get(0).unwrap()
-        })
-        .unwrap()
+        self.read_single("SELECT user_version FROM pragma_user_version", [])
+            .unwrap()
     }
 
     fn set_version(&self, version: usize) {
@@ -297,8 +281,8 @@ impl Database {
     }
 }
 
-impl From<&Row<'_>> for Card {
-    fn from(row: &Row) -> Self {
+impl FromRow for Card {
+    fn from_row(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap(),
             content: row.get(1).unwrap(),
@@ -312,12 +296,18 @@ impl From<&Row<'_>> for Card {
     }
 }
 
-impl From<&Row<'_>> for Tag {
-    fn from(row: &Row<'_>) -> Self {
+impl FromRow for Tag {
+    fn from_row(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),
         }
+    }
+}
+
+impl FromRow for usize {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
     }
 }
 
