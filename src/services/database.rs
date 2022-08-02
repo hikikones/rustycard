@@ -1,12 +1,15 @@
-use std::{path::Path, rc::Rc};
+use std::{cell::RefCell, path::Path, rc::Rc};
 
-use rusqlite::{params, params_from_iter, Connection, Error, OpenFlags, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, Error, Params, Row};
 
 pub type Id = usize;
 
 #[derive(Clone)]
-pub struct Database {
-    connection: Rc<Connection>,
+pub struct Database(Rc<RefCell<_Db>>);
+
+pub struct _Db {
+    connection: Connection,
+    is_dirty: bool,
 }
 
 #[derive(Debug)]
@@ -30,28 +33,24 @@ pub struct Tag {
     pub name: String,
 }
 
-// TODO: Fix schema not executed when creation succeeds, but app itself fails.
 impl Database {
     pub fn new(path: impl AsRef<Path>) -> Self {
-        match Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
-            Ok(conn) => Self {
-                connection: Rc::new(conn),
-            },
-            Err(_) => {
-                // Database not found. Create one.
-                match Connection::open(&path) {
-                    Ok(conn) => {
-                        conn.execute_batch(include_str!("schema.sql")).unwrap();
-                        Self {
-                            connection: Rc::new(conn),
-                        }
-                    }
-                    Err(err) => {
-                        panic!("Error opening database: {}", err)
-                    }
-                }
-            }
+        let file_exists = path.as_ref().exists();
+        let conn = match Connection::open(&path) {
+            Ok(conn) => conn,
+            Err(err) => panic!("{err}"),
+        };
+
+        if !file_exists {
+            conn.execute_batch(include_str!("schema.sql")).unwrap();
         }
+
+        // TODO: Metadata table, check version
+
+        Self(Rc::new(RefCell::new(_Db {
+            connection: conn,
+            is_dirty: false,
+        })))
     }
 
     pub fn get_card(&self, id: Id) -> Card {
@@ -224,7 +223,7 @@ impl Database {
     }
 
     fn last_insert_rowid(&self) -> Id {
-        let id = self.connection.last_insert_rowid();
+        let id = self.0.borrow().connection.last_insert_rowid();
         id.try_into().unwrap()
     }
 
@@ -234,11 +233,14 @@ impl Database {
         params: impl Params,
         f: impl FnOnce(&Row) -> T,
     ) -> Result<T, Error> {
-        self.connection.query_row(sql, params, |row| Ok(f(row)))
+        self.0
+            .borrow()
+            .connection
+            .query_row(sql, params, |row| Ok(f(row)))
     }
 
     fn read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
-        match self.connection.prepare(sql) {
+        match self.0.borrow().connection.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
@@ -252,10 +254,17 @@ impl Database {
     }
 
     fn write(&self, sql: &str, params: impl Params) -> usize {
-        match self.connection.execute(sql, params) {
-            Ok(changed_rows) => changed_rows,
+        match self.0.borrow().connection.execute(sql, params) {
+            Ok(changed_rows) => {
+                self.0.borrow_mut().is_dirty = true;
+                changed_rows
+            }
             Err(err) => panic!("{err}"),
         }
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.0.borrow().is_dirty
     }
 }
 
