@@ -48,17 +48,15 @@ impl Database {
         })));
 
         match db.get_version() {
+            // New database
             0 => {
-                // New database
                 db.write_batch(include_str!("schema.sql"));
                 db.set_version(VERSION);
             }
-            VERSION => {
-                // Current version
-                println!("\nCURRENT!\n");
-            }
+            // Current version
+            VERSION => {}
+            // Unknown version
             _ => {
-                // Unknown version
                 panic!("Unknown database version");
             }
         }

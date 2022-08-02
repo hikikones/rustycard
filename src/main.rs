@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, fs::File, path::Path};
 
 use dioxus::{desktop::use_window, prelude::*};
 
@@ -19,12 +19,21 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-        let db = Database::new(cfg.get_app_db_file());
+
+        let app_db_file = cfg.get_app_db_file();
+        if let Some(custom_db_file) = cfg.get_custom_db_file() {
+            if sync_file(&custom_db_file, &app_db_file) {
+                //todo
+            }
+        }
+
+        let db = Database::new(&app_db_file);
         cx.provide_context(cfg);
         cx.provide_context(db);
     });
 
     let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
+    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
     let window = use_window(&cx);
 
     cx.render(rsx! {
@@ -52,4 +61,25 @@ fn app(cx: Scope) -> Element {
             Redirect { from: "", to: "/review" }
         }
     })
+}
+
+fn sync_file(file: &Path, target: &Path) -> bool {
+    let f1 = File::open(file).unwrap();
+    let f2 = File::open(target).unwrap();
+
+    let m1 = f1.metadata().unwrap();
+    let m2 = f2.metadata().unwrap();
+
+    if m1.len() == m2.len() {
+        return false;
+    }
+
+    if m1.modified().unwrap() <= m2.modified().unwrap() {
+        return false;
+    }
+
+    // Newer file. Copy over.
+    std::fs::copy(file, target).unwrap();
+
+    true
 }
