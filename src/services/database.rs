@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashSet, ffi::OsString, path::Path, rc::Rc};
+use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
 use rusqlite::{params, params_from_iter, Connection, Error, Params, Row};
 
@@ -9,12 +9,7 @@ const VERSION: usize = 1;
 pub type Id = usize;
 
 #[derive(Clone)]
-pub struct Database(Rc<RefCell<Rusqlite>>);
-
-pub struct Rusqlite {
-    connection: Connection,
-    is_dirty: bool,
-}
+pub struct Database(Rc<Connection>);
 
 #[derive(Debug)]
 pub struct Card {
@@ -53,10 +48,7 @@ impl Database {
             Err(err) => panic!("{err}"),
         };
 
-        let db = Self(Rc::new(RefCell::new(Rusqlite {
-            connection: conn,
-            is_dirty: false,
-        })));
+        let db = Self(Rc::new(conn));
 
         match db.get_version() {
             // New database
@@ -245,7 +237,7 @@ impl Database {
     }
 
     fn last_insert_rowid(&self) -> Id {
-        let id = self.0.borrow().connection.last_insert_rowid();
+        let id = self.0.last_insert_rowid();
         id.try_into().unwrap()
     }
 
@@ -255,14 +247,11 @@ impl Database {
         params: impl Params,
         f: impl FnOnce(&Row) -> T,
     ) -> Result<T, Error> {
-        self.0
-            .borrow()
-            .connection
-            .query_row(sql, params, |row| Ok(f(row)))
+        self.0.query_row(sql, params, |row| Ok(f(row)))
     }
 
     fn read(&self, sql: &str, params: impl Params, mut f: impl FnMut(&Row)) {
-        match self.0.borrow().connection.prepare(sql) {
+        match self.0.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
@@ -276,21 +265,14 @@ impl Database {
     }
 
     fn write(&self, sql: &str, params: impl Params) -> usize {
-        let rows = match self.0.borrow().connection.execute(sql, params) {
+        match self.0.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
-        };
-        self.0.borrow_mut().is_dirty = true;
-        rows
+        }
     }
 
     fn write_batch(&self, sql: &str) {
-        self.0.borrow().connection.execute_batch(sql).unwrap();
-        self.0.borrow_mut().is_dirty = true;
-    }
-
-    pub fn is_dirty(&self) -> bool {
-        self.0.borrow().is_dirty
+        self.0.execute_batch(sql).unwrap();
     }
 
     pub fn save(&self, cfg: &Config) {
