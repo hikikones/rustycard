@@ -322,29 +322,25 @@ fn sync(direction: SyncDirection, cfg: &Config) {
 }
 
 fn sync_file(file: &Path, other: &Path) -> bool {
-    if !other.exists() {
+    let is_newer = {
+        if !other.exists() {
+            return true;
+        }
+
+        let f1 = std::fs::File::open(file).unwrap();
+        let f2 = std::fs::File::open(other).unwrap();
+
+        let m1 = f1.metadata().unwrap();
+        let m2 = f2.metadata().unwrap();
+
+        m1.modified().unwrap() > m2.modified().unwrap()
+    };
+
+    if is_newer {
         std::fs::copy(file, other).unwrap();
-        return true;
     }
 
-    let f1 = std::fs::File::open(file).unwrap();
-    let f2 = std::fs::File::open(other).unwrap();
-
-    let m1 = f1.metadata().unwrap();
-    let m2 = f2.metadata().unwrap();
-
-    if m1.len() == m2.len() {
-        return false;
-    }
-
-    if m1.modified().unwrap() <= m2.modified().unwrap() {
-        return false;
-    }
-
-    // Newer file. Copy over.
-    std::fs::copy(file, other).unwrap();
-
-    true
+    is_newer
 }
 
 fn sync_dir(dir: &Path, other: &Path) {
