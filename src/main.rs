@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fs::File, path::Path};
+use std::{cell::RefCell, collections::HashSet, fs::File, path::Path};
 
 use dioxus::{desktop::use_window, prelude::*};
 
@@ -23,7 +23,9 @@ fn app(cx: Scope) -> Element {
         let app_db_file = cfg.get_app_db_file();
         if let Some(custom_db_file) = cfg.get_custom_db_file() {
             if sync_file(&custom_db_file, &app_db_file) {
-                //todo
+                if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                    sync_dir(&custom_assets_dir, &cfg.get_app_assets_dir());
+                }
             }
         }
 
@@ -49,6 +51,18 @@ fn app(cx: Scope) -> Element {
             button {
                 onclick: move |_| {
                     cfg.write();
+
+                    println!("\n\nIS_DIRTY: {}\n\n", db.is_dirty());
+
+                    if db.is_dirty() {
+                        if let Some(custom_db_file) = cfg.get_custom_db_file() {
+                            std::fs::copy(&cfg.get_app_db_file(), &custom_db_file).unwrap();
+                            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+                                sync_dir(&cfg.get_app_assets_dir(), &custom_assets_dir);
+                            }
+                        }
+                    }
+
                     window.close();
                 },
                 "Quit"
@@ -82,4 +96,31 @@ fn sync_file(file: &Path, target: &Path) -> bool {
     std::fs::copy(file, target).unwrap();
 
     true
+}
+
+fn sync_dir(dir: &Path, target: &Path) {
+    dbg!(dir);
+    dbg!(target);
+    let d1 = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|p| p.unwrap().file_name())
+        .collect::<HashSet<_>>();
+    let d2 = std::fs::read_dir(target)
+        .unwrap()
+        .map(|p| p.unwrap().file_name())
+        .collect::<HashSet<_>>();
+
+    // Copy over missing files to d2
+    println!("\nCOPY");
+    for filename in d1.difference(&d2) {
+        //todo
+        println!("{:?}", filename);
+    }
+
+    // Delete non-existent files in d2
+    println!("\n\nDELETE");
+    for filename in d2.difference(&d1) {
+        //todo
+        println!("{:?}", filename);
+    }
 }
