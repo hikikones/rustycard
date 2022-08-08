@@ -14,7 +14,7 @@ pub struct Config(Rc<RefCell<ConfigData>>);
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
     #[serde(skip)]
-    app_path: PathBuf,
+    app_dir: PathBuf,
     version: usize,
     db_file: Option<PathBuf>,
     assets_dir: Option<PathBuf>,
@@ -25,7 +25,7 @@ pub struct ConfigData {
 impl Default for ConfigData {
     fn default() -> Self {
         Self {
-            app_path: std::env::current_dir().unwrap(),
+            app_dir: std::env::current_dir().unwrap(),
             version: 1,
             db_file: None,
             assets_dir: None,
@@ -93,7 +93,7 @@ impl Config {
     }
 
     pub fn get_app_db_file(&self) -> PathBuf {
-        self.0.borrow().app_path.join(DB_FILE_NAME)
+        self.0.borrow().app_dir.join(DB_FILE_NAME)
     }
 
     pub fn get_custom_db_file(&self) -> Option<PathBuf> {
@@ -144,11 +144,11 @@ impl Config {
 
 impl ConfigData {
     fn get_app_config_file(&self) -> PathBuf {
-        self.app_path.join(CONFIG_FILE_NAME)
+        self.app_dir.join(CONFIG_FILE_NAME)
     }
 
     fn get_app_assets_dir(&self) -> PathBuf {
-        self.app_path.join(ASSETS_DIR_NAME)
+        self.app_dir.join(ASSETS_DIR_NAME)
     }
 }
 
