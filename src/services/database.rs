@@ -1,5 +1,6 @@
 use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
+use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
 use super::config::Config;
@@ -18,7 +19,7 @@ pub struct Card {
 
 #[derive(Debug, Clone)]
 pub struct CardReview {
-    pub due_date: chrono::NaiveDate,
+    pub due_date: NaiveDate,
     pub due_days: usize,
     pub recall_attempts: usize,
     pub successful_recalls: usize,
@@ -204,6 +205,20 @@ impl Database {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
+    pub fn _get_last_modified(&self) -> DateTime<Utc> {
+        let mut datetime = None;
+
+        self.read_single_with(
+            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                datetime = Some(row.get(1).unwrap());
+            },
+        );
+
+        datetime.unwrap()
+    }
+
     pub fn save(&self, cfg: &Config) {
         sync(SyncDirection::Close, &cfg);
     }
@@ -215,13 +230,15 @@ impl Database {
 
     fn try_get_version(&self) -> Option<usize> {
         let mut version = None;
-        self.read_single_with::<usize, _, _>(
+
+        self.read_single_with(
             "SELECT metadata_id, version FROM metadata WHERE metadata_id = 1",
             [],
             |row| {
                 version = Some(row.get(1).unwrap());
             },
         );
+
         version
     }
 
@@ -241,7 +258,7 @@ impl Database {
             .unwrap();
     }
 
-    fn read_single_with<T, P, F>(&self, sql: &str, params: P, f: F)
+    fn read_single_with<P, F>(&self, sql: &str, params: P, f: F)
     where
         P: Params,
         F: FnOnce(&Row),
@@ -274,7 +291,7 @@ impl Database {
     {
         let mut item = None;
 
-        self.read_single_with::<T, _, _>(sql, params, |row| {
+        self.read_single_with(sql, params, |row| {
             item = Some(T::from_row(row));
         });
 
@@ -339,6 +356,12 @@ impl FromRow for Tag {
 }
 
 impl FromRow for usize {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
+    }
+}
+
+impl FromRow for DateTime<Utc> {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
     }
