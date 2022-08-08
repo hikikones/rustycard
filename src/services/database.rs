@@ -1,6 +1,5 @@
 use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
-use chrono::Utc;
 use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
 use super::config::Config;
@@ -9,12 +8,6 @@ pub type Id = usize;
 
 #[derive(Clone)]
 pub struct Database(Rc<Connection>);
-
-#[derive(Debug)]
-pub struct Metadata {
-    pub version: usize,
-    pub last_modified: chrono::DateTime<Utc>,
-}
 
 #[derive(Debug)]
 pub struct Card {
@@ -68,31 +61,6 @@ impl Database {
                 db.write_batch(include_str!("schema.sql"));
             }
         }
-
-        // match db.read_single::<Metadata, _>("SELECT * FROM metadata WHERE metadata_id = 1", []) {
-        //     Some(metadata) => {
-        //         //todo
-        //     }
-        //     None => {
-        //         // New database
-        //         db.write_batch(include_str!("schema.sql"));
-        //         // db.set_version(VERSION);
-        //     }
-        // }
-
-        // match db.get_version() {
-        //     // New database
-        //     0 => {
-        //         db.write_batch(include_str!("schema.sql"));
-        //         db.set_version(VERSION);
-        //     }
-        //     // Current version
-        //     VERSION => {}
-        //     // Unknown version
-        //     _ => {
-        //         panic!("Unknown database version");
-        //     }
-        // }
 
         db
     }
@@ -236,18 +204,42 @@ impl Database {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
+    pub fn save(&self, cfg: &Config) {
+        sync(SyncDirection::Close, &cfg);
+    }
+
     fn last_insert_rowid(&self) -> Id {
         let id = self.0.last_insert_rowid();
         id.try_into().unwrap()
     }
 
-    // fn read_single_with<T, P, F>(&self, sql: &str, params: P, f: F) -> Option<T>
-    // where
-    //     P: Params,
-    //     F: FnOnce(&Row) -> T,
-    // {
-    //     self.0.query_row(sql, params, |row| Ok(f(row))).ok()
-    // }
+    fn try_get_version(&self) -> Option<usize> {
+        let mut version = None;
+        self.read_single_with::<usize, _, _>(
+            "SELECT metadata_id, version FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                version = Some(row.get(1).unwrap());
+            },
+        );
+        version
+    }
+
+    fn _set_version(&self, version: usize) {
+        self.write(
+            "UPDATE metadata SET version = ? WHERE metadata_id = 1",
+            params![version],
+        );
+    }
+
+    fn update_last_modified(&self) {
+        self.0
+            .execute(
+                "UPDATE metadata SET last_modifed = (datetime('now')) WHERE metadata_id = 1",
+                [],
+            )
+            .unwrap();
+    }
 
     fn read_single_with<T, P, F>(&self, sql: &str, params: P, f: F)
     where
@@ -255,21 +247,6 @@ impl Database {
         F: FnOnce(&Row),
     {
         self.0.query_row(sql, params, |row| Ok(f(row))).ok();
-
-        // if let Err(err) = self.0.query_row(sql, params, |row| Ok(f(row))) {
-        //     match err {
-        //         rusqlite::Error::QueryReturnedNoRows => todo!(),
-        //         _ => panic!("{err}"),
-        //     }
-        // }
-
-        // match self.0.query_row(sql, params, |row| Ok(f(row))) {
-        //     Ok(a) => todo!(),
-        //     Err(err) => match err {
-        //         rusqlite::Error::QueryReturnedNoRows => todo!(),
-        //         _ => panic!("{err}"),
-        //     },
-        // }
     }
 
     fn read_with<P, F>(&self, sql: &str, params: P, mut f: F)
@@ -296,13 +273,12 @@ impl Database {
         P: Params,
     {
         let mut item = None;
+
         self.read_single_with::<T, _, _>(sql, params, |row| {
             item = Some(T::from_row(row));
         });
+
         item
-        // self.0
-        //     .query_row(sql, params, |row| Ok(T::from_row(row)))
-        //     .ok()
     }
 
     fn read<T, P>(&self, sql: &str, params: P) -> Vec<T>
@@ -311,22 +287,12 @@ impl Database {
         P: Params,
     {
         let mut items = Vec::new();
+
         self.read_with(sql, params, |row| {
             items.push(T::from_row(row));
         });
-        items
 
-        // match self.0.prepare(sql) {
-        //     Ok(mut stmt) => match stmt.query(params) {
-        //         Ok(mut rows) => {
-        //             while let Ok(Some(row)) = rows.next() {
-        //                 items.push(T::from_row(row));
-        //             }
-        //         }
-        //         Err(err) => panic!("{err}"),
-        //     },
-        //     Err(err) => panic!("{err}"),
-        // };
+        items
     }
 
     fn write<P>(&self, sql: &str, params: P) -> usize
@@ -337,78 +303,14 @@ impl Database {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
         };
+
         self.update_last_modified();
+
         changed_rows
     }
 
     fn write_batch(&self, sql: &str) {
         self.0.execute_batch(sql).unwrap();
-    }
-
-    pub fn save(&self, cfg: &Config) {
-        sync(SyncDirection::Close, &cfg);
-    }
-
-    // fn get_metadata(&self) -> Metadata {
-    //     self.read_single("SELECT * FROM metadata WHERE metadata_id = 1", [])
-    //         .unwrap()
-    // }
-
-    // fn set_metadata(&self, metadata: Metadata) {
-    //     self.write(
-    //         r#"
-    //         UPDATE metadata
-    //         SET version = ?, last_modified = ?
-    //         WHERE metadata_id = 1
-    //         "#,
-    //         params![metadata.version, metadata.last_modified],
-    //     );
-    // }
-
-    fn try_get_version(&self) -> Option<usize> {
-        let mut version = None;
-        self.read_single_with::<usize, _, _>(
-            "SELECT metadata_id, version FROM metadata WHERE metadata_id = 1",
-            [],
-            |row| {
-                version = Some(row.get(1).unwrap());
-            },
-        );
-        version
-    }
-
-    fn set_version(&self, version: usize) {
-        self.write(
-            "UPDATE metadata SET version = ? WHERE metadata_id = 1",
-            params![version],
-        );
-    }
-
-    fn update_last_modified(&self) {
-        self.0
-            .execute(
-                "UPDATE metadata SET last_modifed = (datetime('now')) WHERE metadata_id = 1",
-                [],
-            )
-            .unwrap();
-    }
-
-    // fn get_version(&self) -> usize {
-    //     self.read_single("SELECT user_version FROM pragma_user_version", [])
-    //         .unwrap()
-    // }
-
-    // fn set_version(&self, version: usize) {
-    //     self.write(&format!("PRAGMA user_version = {version}"), []);
-    // }
-}
-
-impl FromRow for Metadata {
-    fn from_row(row: &Row) -> Self {
-        Self {
-            version: row.get(1).unwrap(),
-            last_modified: row.get(2).unwrap(),
-        }
     }
 }
 
