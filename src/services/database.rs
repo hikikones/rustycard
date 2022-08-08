@@ -39,7 +39,7 @@ impl Database {
     pub fn new(cfg: &Config) -> Self {
         sync(SyncDirection::Open, &cfg);
 
-        let conn = match Connection::open(&cfg.get_app_db_file()) {
+        let conn = match Connection::open(&cfg.get_db_file()) {
             Ok(conn) => conn,
             Err(err) => panic!("{err}"),
         };
@@ -373,21 +373,23 @@ enum SyncDirection {
 }
 
 fn sync(direction: SyncDirection, cfg: &Config) {
-    if let Some(custom_db_file) = cfg.get_custom_db_file() {
-        let db_file = match direction {
-            SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
-            SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
-        };
-        if sync_file(&db_file.0, &db_file.1) {
-            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                let assets_dir = match direction {
-                    SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
-                    SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
-                };
-                sync_dir(&assets_dir.0, &assets_dir.1);
-            }
-        }
-    }
+    // TODO
+
+    // if let Some(custom_db_file) = cfg.get_custom_db_file() {
+    //     let db_file = match direction {
+    //         SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
+    //         SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
+    //     };
+    //     if sync_file(&db_file.0, &db_file.1) {
+    //         if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
+    //             let assets_dir = match direction {
+    //                 SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
+    //                 SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
+    //             };
+    //             sync_dir(&assets_dir.0, &assets_dir.1);
+    //         }
+    //     }
+    // }
 }
 
 fn sync_file(file: &Path, other: &Path) -> bool {
