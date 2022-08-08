@@ -1,10 +1,9 @@
 use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
 
+use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
 use super::config::Config;
-
-const VERSION: usize = 1;
 
 pub type Id = usize;
 
@@ -20,7 +19,7 @@ pub struct Card {
 
 #[derive(Debug, Clone)]
 pub struct CardReview {
-    pub due_date: chrono::NaiveDate,
+    pub due_date: NaiveDate,
     pub due_days: usize,
     pub recall_attempts: usize,
     pub successful_recalls: usize,
@@ -47,17 +46,20 @@ impl Database {
 
         let db = Self(Rc::new(conn));
 
-        match db.get_version() {
-            // New database
-            0 => {
-                db.write_batch(include_str!("schema.sql"));
-                db.set_version(VERSION);
+        match db.try_get_version() {
+            Some(version) => {
+                match version {
+                    // Current version
+                    1 => {}
+                    // Unknown version
+                    _ => {
+                        panic!("Unknown database version");
+                    }
+                }
             }
-            // Current version
-            VERSION => {}
-            // Unknown version
-            _ => {
-                panic!("Unknown database version");
+            None => {
+                // New database
+                db.write_batch(include_str!("schema.sql"));
             }
         }
 
@@ -203,9 +205,83 @@ impl Database {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
+    pub fn _get_last_modified(&self) -> DateTime<Utc> {
+        let mut datetime = None;
+
+        self.read_single_with(
+            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                datetime = Some(row.get(1).unwrap());
+            },
+        );
+
+        datetime.unwrap()
+    }
+
+    pub fn save(&self, cfg: &Config) {
+        sync(SyncDirection::Close, &cfg);
+    }
+
     fn last_insert_rowid(&self) -> Id {
         let id = self.0.last_insert_rowid();
         id.try_into().unwrap()
+    }
+
+    fn try_get_version(&self) -> Option<usize> {
+        let mut version = None;
+
+        self.read_single_with(
+            "SELECT metadata_id, version FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                version = Some(row.get(1).unwrap());
+            },
+        );
+
+        version
+    }
+
+    fn _set_version(&self, version: usize) {
+        self.write(
+            "UPDATE metadata SET version = ? WHERE metadata_id = 1",
+            params![version],
+        );
+    }
+
+    fn update_last_modified(&self) {
+        self.0
+            .execute(
+                "UPDATE metadata SET last_modified = (datetime('now')) WHERE metadata_id = 1",
+                [],
+            )
+            .unwrap();
+    }
+
+    fn read_single_with<P, F>(&self, sql: &str, params: P, f: F)
+    where
+        P: Params,
+        F: FnOnce(&Row),
+    {
+        self.0.query_row(sql, params, |row| Ok(f(row))).ok();
+    }
+
+    fn read_with<P, F>(&self, sql: &str, params: P, mut f: F)
+    where
+        P: Params,
+        F: FnMut(&Row),
+    {
+        match self.0.prepare(sql) {
+            Ok(mut stmt) => match stmt.query(params) {
+                Ok(mut rows) => {
+                    while let Ok(Some(row)) = rows.next() {
+                        f(row);
+                    }
+                }
+                Err(err) => panic!("{err}"),
+            },
+            Err(err) => panic!("{err}"),
+        };
     }
 
     fn read_single<T, P>(&self, sql: &str, params: P) -> Option<T>
@@ -213,9 +289,13 @@ impl Database {
         T: FromRow,
         P: Params,
     {
-        self.0
-            .query_row(sql, params, |row| Ok(T::from_row(row)))
-            .ok()
+        let mut item = None;
+
+        self.read_single_with(sql, params, |row| {
+            item = Some(T::from_row(row));
+        });
+
+        item
     }
 
     fn read<T, P>(&self, sql: &str, params: P) -> Vec<T>
@@ -225,17 +305,9 @@ impl Database {
     {
         let mut items = Vec::new();
 
-        match self.0.prepare(sql) {
-            Ok(mut stmt) => match stmt.query(params) {
-                Ok(mut rows) => {
-                    while let Ok(Some(row)) = rows.next() {
-                        items.push(T::from_row(row));
-                    }
-                }
-                Err(err) => panic!("{err}"),
-            },
-            Err(err) => panic!("{err}"),
-        };
+        self.read_with(sql, params, |row| {
+            items.push(T::from_row(row));
+        });
 
         items
     }
@@ -244,27 +316,18 @@ impl Database {
     where
         P: Params,
     {
-        match self.0.execute(sql, params) {
+        let changed_rows = match self.0.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
-        }
+        };
+
+        self.update_last_modified();
+
+        changed_rows
     }
 
     fn write_batch(&self, sql: &str) {
         self.0.execute_batch(sql).unwrap();
-    }
-
-    pub fn save(&self, cfg: &Config) {
-        sync(SyncDirection::Close, &cfg);
-    }
-
-    fn get_version(&self) -> usize {
-        self.read_single("SELECT user_version FROM pragma_user_version", [])
-            .unwrap()
-    }
-
-    fn set_version(&self, version: usize) {
-        self.write(&format!("PRAGMA user_version = {version}"), []);
     }
 }
 
@@ -293,6 +356,12 @@ impl FromRow for Tag {
 }
 
 impl FromRow for usize {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
+    }
+}
+
+impl FromRow for DateTime<Utc> {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
     }
