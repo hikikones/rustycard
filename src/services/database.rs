@@ -252,7 +252,7 @@ impl Database {
     fn update_last_modified(&self) {
         self.0
             .execute(
-                "UPDATE metadata SET last_modifed = (datetime('now')) WHERE metadata_id = 1",
+                "UPDATE metadata SET last_modified = (datetime('now')) WHERE metadata_id = 1",
                 [],
             )
             .unwrap();
