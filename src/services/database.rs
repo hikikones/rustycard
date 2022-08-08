@@ -5,8 +5,6 @@ use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
 use super::config::Config;
 
-const VERSION: usize = 1;
-
 pub type Id = usize;
 
 #[derive(Clone)]
@@ -58,7 +56,7 @@ impl Database {
             Some(version) => {
                 match version {
                     // Current version
-                    VERSION => {}
+                    1 => {}
                     // Unknown version
                     _ => {
                         panic!("Unknown database version");
