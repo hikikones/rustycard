@@ -1,3 +1,9 @@
+CREATE TABLE metadata (
+    metadata_id INTEGER PRIMARY KEY,
+    version INTEGER DEFAULT 1 NOT NULL,
+    last_modified TEXT DEFAULT (datetime('now')) NOT NULL
+);
+
 CREATE TABLE cards (
     card_id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,
@@ -21,6 +27,8 @@ CREATE TABLE card_tag (
     FOREIGN KEY (tag_id) REFERENCES tags (tag_id)
         ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+INSERT INTO metadata DEFAULT VALUES;
 
 INSERT INTO tags (name)
     VALUES  ("Tag1"),
