@@ -4,5 +4,6 @@
 /assets
 dev.db
 dev.toml
+dev.rustyzip
 config.toml
 rustycard.db

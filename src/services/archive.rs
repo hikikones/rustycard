@@ -1,25 +1,32 @@
-use std::{fs::File, io::Write, path::Path};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::Path,
+};
 
-use zip::{write::FileOptions, ZipArchive, ZipWriter};
+use zip::write::FileOptions;
 
-trait ZipWriterExt {
-    fn write_file(&mut self, file: &Path, name: &str);
-    fn write_dir(&mut self, dir: &Path, name: &str);
+pub use zip::{ZipArchive, ZipWriter};
+
+pub trait ZipWriterExt {
+    fn write_file<P: AsRef<Path>>(&mut self, file: P, name: &str);
+    fn write_dir<P: AsRef<Path>>(&mut self, dir: P, name: &str);
 }
 
-trait ZipReaderExt {
-    fn extract_file(&mut self, name: &str, target: &Path, replace: bool);
-    fn extract_dir(&mut self, name: &str, target: &Path, replace: bool);
+pub trait ZipReaderExt {
+    fn read_file(&mut self, name: &str) -> Vec<u8>;
+    fn extract_file<P: AsRef<Path>>(&mut self, name: &str, target: P, replace: bool);
+    fn extract_dir<P: AsRef<Path>>(&mut self, name: &str, target: P, replace: bool);
 }
 
 impl ZipWriterExt for ZipWriter<File> {
-    fn write_file(&mut self, file: &Path, name: &str) {
+    fn write_file<P: AsRef<Path>>(&mut self, file: P, name: &str) {
         self.start_file(name, FileOptions::default()).unwrap();
         let bytes = std::fs::read(file).unwrap();
         self.write_all(&bytes).unwrap();
     }
 
-    fn write_dir(&mut self, dir: &Path, name: &str) {
+    fn write_dir<P: AsRef<Path>>(&mut self, dir: P, name: &str) {
         self.add_directory(name, FileOptions::default()).unwrap();
         for entry in std::fs::read_dir(dir).unwrap() {
             let file_path = entry.unwrap().path();
@@ -34,8 +41,16 @@ impl ZipWriterExt for ZipWriter<File> {
 }
 
 impl ZipReaderExt for ZipArchive<File> {
-    fn extract_file(&mut self, name: &str, target: &Path, replace: bool) {
-        if !replace && target.exists() {
+    fn read_file(&mut self, name: &str) -> Vec<u8> {
+        self.by_name(name)
+            .unwrap()
+            .bytes()
+            .filter_map(|b| b.ok())
+            .collect()
+    }
+
+    fn extract_file<P: AsRef<Path>>(&mut self, name: &str, target: P, replace: bool) {
+        if !replace && target.as_ref().exists() {
             return;
         }
 
@@ -45,12 +60,12 @@ impl ZipReaderExt for ZipArchive<File> {
         }
     }
 
-    fn extract_dir(&mut self, name: &str, target: &Path, replace: bool) {
-        if !target.is_dir() {
+    fn extract_dir<P: AsRef<Path>>(&mut self, name: &str, target: P, replace: bool) {
+        if !target.as_ref().is_dir() {
             panic!();
         }
 
-        std::fs::create_dir_all(target).unwrap();
+        std::fs::create_dir_all(target.as_ref()).unwrap();
         let dir = Some(Path::new(name));
 
         for i in 0..self.len() {
@@ -63,7 +78,7 @@ impl ZipReaderExt for ZipArchive<File> {
 
             if zip_path.parent() == dir {
                 let file_name = zip_path.file_name().unwrap();
-                let file = target.join(file_name);
+                let file = target.as_ref().join(file_name);
 
                 if !replace && file.exists() {
                     continue;

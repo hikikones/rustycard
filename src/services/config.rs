@@ -13,21 +13,22 @@ pub struct Config(Rc<RefCell<ConfigData>>);
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
+    version: usize,
+    location: Option<PathBuf>,
+
     #[serde(skip)]
     app_dir: PathBuf,
-    version: usize,
     #[serde(skip)]
     is_dirty: bool,
-    location: Option<PathBuf>,
 }
 
 impl Default for ConfigData {
     fn default() -> Self {
         Self {
-            app_dir: std::env::current_dir().unwrap(),
             version: 1,
-            is_dirty: false,
             location: None,
+            app_dir: std::env::current_dir().unwrap(),
+            is_dirty: false,
         }
     }
 }
@@ -71,6 +72,14 @@ impl Config {
         }
 
         Self(Rc::new(RefCell::new(cfg)))
+    }
+
+    pub fn get_app_dir(&self) -> PathBuf {
+        self.0.borrow().app_dir.to_owned()
+    }
+
+    pub fn get_db_file_name(&self) -> &str {
+        DB_FILE_NAME
     }
 
     pub fn get_db_file(&self) -> PathBuf {

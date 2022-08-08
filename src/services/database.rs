@@ -1,9 +1,16 @@
-use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
+use std::{
+    collections::HashSet,
+    ffi::OsString,
+    fs::File,
+    io::{Seek, Write},
+    path::Path,
+    rc::Rc,
+};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{params, params_from_iter, Connection, Params, Row};
 
-use super::config::Config;
+use super::{archive::*, config::Config};
 
 pub type Id = usize;
 
@@ -37,7 +44,35 @@ trait FromRow {
 
 impl Database {
     pub fn new(cfg: &Config) -> Self {
-        sync(SyncDirection::Open, &cfg);
+        // sync(SyncDirection::Open, &cfg);
+
+        // TODO: Sync
+        // if let Some(loc) = cfg.get_location() {
+        //     if let Ok(file) = std::fs::File::open(loc) {
+        //         let mut zip = ZipArchive::new(file).unwrap();
+        //         let bytes = zip.read_file(cfg.get_db_file_name());
+        //         // let mut tmp = tempfile::tempfile().unwrap();
+        //         // tmp.write_all(&bytes).unwrap();
+        //         // tmp.rewind().unwrap();
+
+        //         let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
+        //         kk.write_all(&bytes).unwrap();
+
+        //         let conn = match Connection::open(kk.path()) {
+        //             Ok(conn) => conn,
+        //             Err(err) => panic!("{err}"),
+        //         };
+
+        //         let db = Self(Rc::new(conn));
+
+        //         let d1 = self._get_last_modified();
+        //         let d2 = db._get_last_modified();
+
+        //         if d1 < d2 {
+        //             //todo
+        //         }
+        //     }
+        // }
 
         let conn = match Connection::open(&cfg.get_db_file()) {
             Ok(conn) => conn,
@@ -220,7 +255,42 @@ impl Database {
     }
 
     pub fn save(&self, cfg: &Config) {
-        sync(SyncDirection::Close, &cfg);
+        if let Some(location) = cfg.get_location() {
+            // TODO: is_db_dirty?
+            if let Ok(file) = File::create(location) {
+                let mut writer = ZipWriter::new(file);
+                writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
+                writer.write_dir(cfg.get_assets_dir(), cfg.get_assets_dir_name());
+            }
+        }
+
+        // sync(SyncDirection::Close, &cfg);
+        // if let Some(loc) = cfg.get_location() {
+        //     if let Ok(file) = std::fs::File::open(loc) {
+        //         let mut zip = ZipArchive::new(file).unwrap();
+        //         let bytes = zip.read_file(cfg.get_db_file_name());
+        //         // let mut tmp = tempfile::tempfile().unwrap();
+        //         // tmp.write_all(&bytes).unwrap();
+        //         // tmp.rewind().unwrap();
+
+        //         let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
+        //         kk.write_all(&bytes).unwrap();
+
+        //         let conn = match Connection::open(kk.path()) {
+        //             Ok(conn) => conn,
+        //             Err(err) => panic!("{err}"),
+        //         };
+
+        //         let db = Self(Rc::new(conn));
+
+        //         let d1 = self._get_last_modified();
+        //         let d2 = db._get_last_modified();
+
+        //         if d1 < d2 {
+        //             //todo
+        //         }
+        //     }
+        // }
     }
 
     fn last_insert_rowid(&self) -> Id {
