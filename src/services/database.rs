@@ -63,7 +63,7 @@ impl Database {
             Err(err) => panic!("{err}"),
         };
 
-        let db = Self {
+        let mut db = Self {
             connection: conn,
             is_dirty: false,
         };
@@ -421,8 +421,9 @@ impl Database {
         changed_rows
     }
 
-    fn write_batch(&self, sql: &str) {
+    fn write_batch(&mut self, sql: &str) {
         self.connection.execute_batch(sql).unwrap();
+        self.is_dirty = true;
     }
 }
 
