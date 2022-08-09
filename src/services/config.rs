@@ -5,8 +5,13 @@ use std::{
     rc::Rc,
 };
 
+use dioxus::prelude::ScopeState;
 use serde::{Deserialize, Serialize};
 use toml::Value;
+
+pub fn use_config(cx: &ScopeState) -> &RefCell<Config> {
+    &*cx.use_hook(|_| cx.consume_context::<Rc<RefCell<Config>>>().unwrap())
+}
 
 #[derive(Clone)]
 pub struct Config(Rc<RefCell<ConfigData>>);
