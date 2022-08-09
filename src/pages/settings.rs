@@ -1,13 +1,14 @@
 use dioxus::prelude::*;
 use native_dialog::FileDialog;
 
-use crate::services::config::Config;
+use crate::services::config::use_config;
 
 #[allow(non_snake_case)]
 pub fn Settings(cx: Scope) -> Element {
-    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
+    let cfg = use_config(&cx);
     let location = use_state(&cx, || {
-        cfg.get_location()
+        cfg.borrow()
+            .get_location()
             .map_or("None".to_string(), |loc| loc.display().to_string())
     });
 
@@ -26,7 +27,7 @@ pub fn Settings(cx: Scope) -> Element {
                     .unwrap();
 
                 if let Some(path) = &path {
-                    cfg.set_location(path);
+                    cfg.borrow_mut().set_location(path);
                     location.set(path.display().to_string());
                 }
             },

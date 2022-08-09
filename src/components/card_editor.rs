@@ -3,13 +3,13 @@ use std::path::Path;
 use dioxus::prelude::*;
 use native_dialog::FileDialog;
 
-use crate::services::config::Config;
+use crate::services::config::use_config;
 
 use super::MarkdownView;
 
 #[allow(non_snake_case)]
 pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
-    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
+    let cfg = use_config(&cx);
     let content = use_state(&cx, || cx.props.initial_value.to_owned());
 
     cx.render(rsx! {
@@ -27,9 +27,11 @@ pub fn CardEditor<'a>(cx: Scope<'a, CardEditorProps<'a>>) -> Element {
                     let ext = path.extension().unwrap().to_str().unwrap();
                     let filename = format!("{:x}.{}", digest, ext);
 
-                    let target_path = &cfg.get_assets_dir().join(&filename);
-                    if !Path::exists(target_path) {
-                        std::fs::copy(path, target_path).unwrap();
+                    let cfg = cfg.borrow();
+
+                    let target_path = cfg.get_assets_dir().join(&filename);
+                    if !Path::exists(&target_path) {
+                        std::fs::copy(path, &target_path).unwrap();
                     }
 
                     let img = cfg.get_assets_dir_name().to_owned() + "/" + &filename;
