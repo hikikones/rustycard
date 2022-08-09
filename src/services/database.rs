@@ -368,7 +368,12 @@ impl Database {
             if let Ok(file) = File::create(location) {
                 let mut writer = ZipWriter::new(file);
                 writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
-                writer.write_dir(cfg.get_assets_dir(), cfg.get_assets_dir_name());
+                // writer.write_dir(cfg.get_assets_dir(), cfg.get_assets_dir_name());
+                for asset_file_name in &self._get_used_assets(cfg) {
+                    let path = cfg.get_assets_dir().join(asset_file_name);
+                    let name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
+                    writer.write_file(path, &name)
+                }
             }
         }
 
