@@ -190,17 +190,33 @@ impl Database {
     pub fn _get_used_assets(&self, cfg: &Config) -> Vec<String> {
         let mut assets = Vec::new();
 
-        let cards = self.get_cards();
+        // let cards = self.get_cards();
+        let contents = self.read::<String, _>("SELECT content FROM cards", []);
         for entry in std::fs::read_dir(cfg.get_assets_dir()).unwrap() {
             if let Ok(asset) = entry {
                 let file_name = asset.file_name();
                 let name_lossy = file_name.to_string_lossy();
-                for card in &cards {
-                    if card.content.contains(name_lossy.as_ref()) {
+                for content in &contents {
+                    if content.contains(name_lossy.as_ref()) {
                         assets.push(name_lossy.as_ref().to_owned());
                         break;
                     }
                 }
+                // self.read_with("SELECT content FROM cards", [], |row| {
+                //     //todo
+                //     let content: String = row.get(0).unwrap();
+                //     // dbg!(content);
+                //     if content.contains(name_lossy.as_ref()) {
+                //         assets.push(name_lossy.as_ref().to_owned());
+                //         return;
+                //     }
+                // });
+                // for card in &cards {
+                //     if card.content.contains(name_lossy.as_ref()) {
+                //         assets.push(name_lossy.as_ref().to_owned());
+                //         break;
+                //     }
+                // }
             }
         }
 
@@ -532,6 +548,12 @@ impl FromRow for Tag {
             id: row.get(0).unwrap(),
             name: row.get(1).unwrap(),
         }
+    }
+}
+
+impl FromRow for String {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
     }
 }
 
