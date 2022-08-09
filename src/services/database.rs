@@ -1,9 +1,9 @@
-use std::{collections::HashSet, ffi::OsString, path::Path, rc::Rc};
+use std::{fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
-use rusqlite::{params, params_from_iter, Connection, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
-use super::config::Config;
+use super::{archive::*, config::Config};
 
 pub type Id = usize;
 
@@ -37,9 +37,21 @@ trait FromRow {
 
 impl Database {
     pub fn new(cfg: &Config) -> Self {
-        sync(SyncDirection::Open, &cfg);
+        if let Some(location) = cfg.get_location() {
+            if let Ok(file) = std::fs::File::open(location) {
+                let mut reader = ZipArchive::new(file).unwrap();
+                let temp_db_bytes = reader.read_file(cfg.get_db_file_name());
+                let mut temp_db_file = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
+                temp_db_file.write_all(&temp_db_bytes).unwrap();
 
-        let conn = match Connection::open(&cfg.get_app_db_file()) {
+                if Self::is_newer(temp_db_file.path(), &cfg.get_db_file()) {
+                    reader.extract_file(cfg.get_db_file_name(), cfg.get_db_file(), true);
+                    reader.extract_dir(cfg.get_assets_dir_name(), cfg.get_assets_dir(), false);
+                }
+            }
+        }
+
+        let conn = match Connection::open(&cfg.get_db_file()) {
             Ok(conn) => conn,
             Err(err) => panic!("{err}"),
         };
@@ -64,6 +76,51 @@ impl Database {
         }
 
         db
+    }
+
+    fn is_newer<P: AsRef<Path>>(db_file: P, other_db_file: P) -> bool {
+        if !other_db_file.as_ref().exists() {
+            return true;
+        }
+
+        if let Some(datetime) = Self::try_read_last_modified(db_file.as_ref()) {
+            if let Some(other_datetime) = Self::try_read_last_modified(other_db_file.as_ref()) {
+                return datetime > other_datetime;
+            }
+        }
+
+        false
+    }
+
+    fn try_read_last_modified<P: AsRef<Path>>(db_file: P) -> Option<DateTime<Utc>> {
+        let mut datetime = None;
+
+        if let Ok(conn) = Connection::open_with_flags(db_file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+            let db = Self(Rc::new(conn));
+            datetime = db._try_get_last_modified();
+        }
+
+        datetime
+    }
+
+    pub fn _get_used_assets(&self, cfg: &Config) -> Vec<String> {
+        let mut assets = Vec::new();
+
+        let contents = self.read::<String, _>("SELECT content FROM cards", []);
+        for entry in std::fs::read_dir(cfg.get_assets_dir()).unwrap() {
+            if let Ok(asset_file) = entry {
+                let file_name = asset_file.file_name();
+                let name_lossy = file_name.to_string_lossy();
+                for content in &contents {
+                    if content.contains(name_lossy.as_ref()) {
+                        assets.push(name_lossy.as_ref().to_owned());
+                        break;
+                    }
+                }
+            }
+        }
+
+        assets
     }
 
     pub fn get_card(&self, id: Id) -> Card {
@@ -205,22 +262,18 @@ impl Database {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
-    pub fn _get_last_modified(&self) -> DateTime<Utc> {
-        let mut datetime = None;
-
-        self.read_single_with(
-            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
-            [],
-            |row| {
-                datetime = Some(row.get(1).unwrap());
-            },
-        );
-
-        datetime.unwrap()
-    }
-
     pub fn save(&self, cfg: &Config) {
-        sync(SyncDirection::Close, &cfg);
+        if let Some(location) = cfg.get_location() {
+            if let Ok(file) = File::create(location) {
+                let mut writer = ZipWriter::new(file);
+                writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
+                for asset_file_name in &self._get_used_assets(cfg) {
+                    let file_path = cfg.get_assets_dir().join(asset_file_name);
+                    let zip_name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
+                    writer.write_file(file_path, &zip_name)
+                }
+            }
+        }
     }
 
     fn last_insert_rowid(&self) -> Id {
@@ -247,6 +300,24 @@ impl Database {
             "UPDATE metadata SET version = ? WHERE metadata_id = 1",
             params![version],
         );
+    }
+
+    fn _try_get_last_modified(&self) -> Option<DateTime<Utc>> {
+        let mut datetime = None;
+
+        self.read_single_with(
+            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                datetime = Some(row.get(1).unwrap());
+            },
+        );
+
+        datetime
+    }
+
+    fn _get_last_modified(&self) -> DateTime<Utc> {
+        self._try_get_last_modified().unwrap()
     }
 
     fn update_last_modified(&self) {
@@ -355,6 +426,12 @@ impl FromRow for Tag {
     }
 }
 
+impl FromRow for String {
+    fn from_row(row: &Row) -> Self {
+        row.get(0).unwrap()
+    }
+}
+
 impl FromRow for usize {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
@@ -364,72 +441,5 @@ impl FromRow for usize {
 impl FromRow for DateTime<Utc> {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
-    }
-}
-
-enum SyncDirection {
-    Open,
-    Close,
-}
-
-fn sync(direction: SyncDirection, cfg: &Config) {
-    if let Some(custom_db_file) = cfg.get_custom_db_file() {
-        let db_file = match direction {
-            SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
-            SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
-        };
-        if sync_file(&db_file.0, &db_file.1) {
-            if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-                let assets_dir = match direction {
-                    SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
-                    SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
-                };
-                sync_dir(&assets_dir.0, &assets_dir.1);
-            }
-        }
-    }
-}
-
-fn sync_file(file: &Path, other: &Path) -> bool {
-    let is_newer = {
-        if !other.exists() {
-            return true;
-        }
-
-        let f1 = std::fs::File::open(file).unwrap();
-        let f2 = std::fs::File::open(other).unwrap();
-
-        let m1 = f1.metadata().unwrap();
-        let m2 = f2.metadata().unwrap();
-
-        m1.modified().unwrap() > m2.modified().unwrap()
-    };
-
-    if is_newer {
-        std::fs::copy(file, other).unwrap();
-    }
-
-    is_newer
-}
-
-fn sync_dir(dir: &Path, other: &Path) {
-    fn get_file_names(d: &Path) -> HashSet<OsString> {
-        std::fs::read_dir(d)
-            .unwrap()
-            .map(|p| p.unwrap().file_name())
-            .collect()
-    }
-
-    let d1 = get_file_names(dir);
-    let d2 = get_file_names(other);
-
-    // Copy over missing files
-    for filename in d1.difference(&d2) {
-        std::fs::copy(dir.join(filename), other.join(filename)).unwrap();
-    }
-
-    // Remove non-existent files
-    for filename in d2.difference(&d1) {
-        std::fs::remove_file(other.join(filename)).unwrap();
     }
 }
