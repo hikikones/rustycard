@@ -8,7 +8,7 @@ use std::{
 };
 
 use chrono::{DateTime, NaiveDate, Utc};
-use rusqlite::{params, params_from_iter, Connection, Params, Row};
+use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
 use super::{archive::*, config::Config};
 
@@ -46,11 +46,71 @@ impl Database {
     pub fn new(cfg: &Config) -> Self {
         // sync(SyncDirection::Open, &cfg);
 
+        if let Some(location) = cfg.get_location() {
+            if let Ok(file) = std::fs::File::open(location) {
+                let mut reader = ZipArchive::new(file).unwrap();
+                let bytes = reader.read_file(cfg.get_db_file_name());
+                let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
+                kk.write_all(&bytes).unwrap();
+                // let mut tmp = tempfile::tempfile().unwrap();
+                // tmp.write_all(&bytes).unwrap();
+                // tmp.rewind().unwrap();
+
+                // std::thread::sleep(std::time::Duration::from_secs(3));
+
+                if Self::is_newer(kk.path(), &cfg.get_db_file()) {
+                    //todo: SYNC
+                }
+
+                // let do_sync = {
+                //     if !cfg.get_db_file().exists() {
+                //         true
+                //     } else {
+                //         if true {
+                //             false
+                //         } else {
+                //             false
+                //         }
+                //     }
+                // };
+
+                // if let Some(other_datetime) = Self::try_read_last_modified(kk.path()) {
+                //     let do_sync = if let Some(local_datetime) =
+                //         Self::try_read_last_modified(cfg.get_db_file())
+                //     {
+                //         other_datetime > local_datetime
+                //     } else {
+                //         false
+                //     };
+                // }
+
+                // let d1 = Self::try_read_last_modified(cfg.get_db_file());
+                // let d2 = Self::try_read_last_modified(kk.path());
+
+                // dbg!(d1);
+                // dbg!(d2);
+
+                // let conn = match Connection::open(kk.path()) {
+                //     Ok(conn) => conn,
+                //     Err(err) => panic!("{err}"),
+                // };
+
+                // let db = Self(Rc::new(conn));
+
+                // let d1 = self._get_last_modified();
+                // let d2 = db._get_last_modified();
+
+                // if d1 < d2 {
+                //     //todo
+                // }
+            }
+        }
+
         // TODO: Sync
         // if let Some(loc) = cfg.get_location() {
         //     if let Ok(file) = std::fs::File::open(loc) {
-        //         let mut zip = ZipArchive::new(file).unwrap();
-        //         let bytes = zip.read_file(cfg.get_db_file_name());
+        //         let mut reader = ZipArchive::new(file).unwrap();
+        //         let bytes = reader.read_file(cfg.get_db_file_name());
         //         // let mut tmp = tempfile::tempfile().unwrap();
         //         // tmp.write_all(&bytes).unwrap();
         //         // tmp.rewind().unwrap();
@@ -99,6 +159,31 @@ impl Database {
         }
 
         db
+    }
+
+    fn is_newer<P: AsRef<Path>>(db_file: P, other_db_file: P) -> bool {
+        if !other_db_file.as_ref().exists() {
+            return true;
+        }
+
+        if let Some(datetime) = Self::try_read_last_modified(db_file.as_ref()) {
+            if let Some(other_datetime) = Self::try_read_last_modified(other_db_file.as_ref()) {
+                return datetime > other_datetime;
+            }
+        }
+
+        false
+    }
+
+    fn try_read_last_modified<P: AsRef<Path>>(db_file: P) -> Option<DateTime<Utc>> {
+        let mut datetime = None;
+
+        if let Ok(conn) = Connection::open_with_flags(db_file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+            let db = Self(Rc::new(conn));
+            datetime = db._try_get_last_modified();
+        }
+
+        datetime
     }
 
     pub fn get_card(&self, id: Id) -> Card {
@@ -240,20 +325,6 @@ impl Database {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
-    pub fn _get_last_modified(&self) -> DateTime<Utc> {
-        let mut datetime = None;
-
-        self.read_single_with(
-            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
-            [],
-            |row| {
-                datetime = Some(row.get(1).unwrap());
-            },
-        );
-
-        datetime.unwrap()
-    }
-
     pub fn save(&self, cfg: &Config) {
         if let Some(location) = cfg.get_location() {
             // TODO: is_db_dirty?
@@ -317,6 +388,24 @@ impl Database {
             "UPDATE metadata SET version = ? WHERE metadata_id = 1",
             params![version],
         );
+    }
+
+    fn _try_get_last_modified(&self) -> Option<DateTime<Utc>> {
+        let mut datetime = None;
+
+        self.read_single_with(
+            "SELECT metadata_id, last_modified FROM metadata WHERE metadata_id = 1",
+            [],
+            |row| {
+                datetime = Some(row.get(1).unwrap());
+            },
+        );
+
+        datetime
+    }
+
+    fn _get_last_modified(&self) -> DateTime<Utc> {
+        self._try_get_last_modified().unwrap()
     }
 
     fn update_last_modified(&self) {
