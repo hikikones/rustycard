@@ -20,7 +20,7 @@ fn app(cx: Scope) -> Element {
         let cfg = Config::new();
         let db = Database::new(&cfg);
         cx.provide_context(Rc::new(RefCell::new(cfg)));
-        cx.provide_context(Rc::new(db));
+        cx.provide_context(Rc::new(RefCell::new(db)));
     });
 
     let cfg = use_config(&cx);
@@ -40,7 +40,7 @@ fn app(cx: Scope) -> Element {
             button {
                 onclick: move |_| {
                     cfg.borrow().save();
-                    db.save(&*cfg.borrow());
+                    db.borrow().save(&*cfg.borrow());
                     window.close();
                 },
                 "Quit"

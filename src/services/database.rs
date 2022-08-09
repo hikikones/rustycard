@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::Path, rc::Rc};
+use std::{cell::RefCell, fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use dioxus::prelude::ScopeState;
@@ -8,7 +8,10 @@ use super::{archive::*, config::Config};
 
 pub type Id = usize;
 
-pub struct Database(Connection);
+pub struct Database {
+    connection: Connection,
+    is_dirty: bool,
+}
 
 #[derive(Debug)]
 pub struct Card {
@@ -35,8 +38,8 @@ trait FromRow {
     fn from_row(row: &Row) -> Self;
 }
 
-pub fn use_database(cx: &ScopeState) -> &Database {
-    &*cx.use_hook(|_| cx.consume_context::<Rc<Database>>().unwrap())
+pub fn use_database(cx: &ScopeState) -> &RefCell<Database> {
+    &*cx.use_hook(|_| cx.consume_context::<Rc<RefCell<Database>>>().unwrap())
 }
 
 impl Database {
@@ -60,7 +63,10 @@ impl Database {
             Err(err) => panic!("{err}"),
         };
 
-        let db = Self(conn);
+        let db = Self {
+            connection: conn,
+            is_dirty: false,
+        };
 
         match db.try_get_version() {
             Some(version) => {
@@ -100,8 +106,11 @@ impl Database {
         let mut datetime = None;
 
         if let Ok(conn) = Connection::open_with_flags(db_file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            let db = Self(conn);
-            datetime = db._try_get_last_modified();
+            let db = Self {
+                connection: conn,
+                is_dirty: false,
+            };
+            datetime = db.try_get_last_modified();
         }
 
         datetime
@@ -281,7 +290,7 @@ impl Database {
     }
 
     fn last_insert_rowid(&self) -> Id {
-        let id = self.0.last_insert_rowid();
+        let id = self.connection.last_insert_rowid();
         id.try_into().unwrap()
     }
 
@@ -306,7 +315,7 @@ impl Database {
         );
     }
 
-    fn _try_get_last_modified(&self) -> Option<DateTime<Utc>> {
+    fn try_get_last_modified(&self) -> Option<DateTime<Utc>> {
         let mut datetime = None;
 
         self.read_single_with(
@@ -321,11 +330,11 @@ impl Database {
     }
 
     fn _get_last_modified(&self) -> DateTime<Utc> {
-        self._try_get_last_modified().unwrap()
+        self.try_get_last_modified().unwrap()
     }
 
     fn update_last_modified(&self) {
-        self.0
+        self.connection
             .execute(
                 "UPDATE metadata SET last_modified = (datetime('now')) WHERE metadata_id = 1",
                 [],
@@ -338,7 +347,9 @@ impl Database {
         P: Params,
         F: FnOnce(&Row),
     {
-        self.0.query_row(sql, params, |row| Ok(f(row))).ok();
+        self.connection
+            .query_row(sql, params, |row| Ok(f(row)))
+            .ok();
     }
 
     fn read_with<P, F>(&self, sql: &str, params: P, mut f: F)
@@ -346,7 +357,7 @@ impl Database {
         P: Params,
         F: FnMut(&Row),
     {
-        match self.0.prepare(sql) {
+        match self.connection.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
@@ -391,7 +402,7 @@ impl Database {
     where
         P: Params,
     {
-        let changed_rows = match self.0.execute(sql, params) {
+        let changed_rows = match self.connection.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
         };
@@ -402,7 +413,7 @@ impl Database {
     }
 
     fn write_batch(&self, sql: &str) {
-        self.0.execute_batch(sql).unwrap();
+        self.connection.execute_batch(sql).unwrap();
     }
 }
 

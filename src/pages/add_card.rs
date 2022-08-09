@@ -11,7 +11,7 @@ pub fn AddCard(cx: Scope) -> Element {
         CardEditor {
             onsave: |content: &str| {
                 if !content.is_empty() {
-                    db.create_card(content);
+                    db.borrow().create_card(content);
                 }
             },
         }

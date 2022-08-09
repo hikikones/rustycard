@@ -7,7 +7,7 @@ use crate::{components::MarkdownView, services::database::*};
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
     let db = use_database(&cx);
-    let cards = use_ref(&cx, || db.get_due_cards());
+    let cards = use_ref(&cx, || db.borrow().get_due_cards());
 
     if cards.read().is_empty() {
         return cx.render(rsx! {
@@ -27,7 +27,7 @@ pub fn Review(cx: Scope) -> Element {
         true => rsx! {
             button {
                 onclick: move |_| {
-                    update_card_review(&cards.read()[index.get()], true, db);
+                    update_card_review(&cards.read()[index.get()], true, &*db.borrow());
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
@@ -44,7 +44,7 @@ pub fn Review(cx: Scope) -> Element {
             }
             button {
                 onclick: move |_| {
-                    update_card_review(&cards.read()[index.get()], false, db);
+                    update_card_review(&cards.read()[index.get()], false, &*db.borrow());
                     cards.write_silent().swap_remove(index.get());
                     cards.with(|cards|{
                         if !cards.is_empty() {
