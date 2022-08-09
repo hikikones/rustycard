@@ -213,12 +213,12 @@ impl Database {
         .unwrap()
     }
 
-    pub fn create_card(&self, content: &str) -> Id {
+    pub fn create_card(&mut self, content: &str) -> Id {
         self.write("INSERT INTO cards (content) VALUES (?)", [content]);
         self.last_insert_rowid()
     }
 
-    pub fn update_card_content(&self, id: Id, content: &str) {
+    pub fn update_card_content(&mut self, id: Id, content: &str) {
         assert!(id != 0);
         self.write(
             "UPDATE cards SET content = ? WHERE card_id = ?",
@@ -226,7 +226,7 @@ impl Database {
         );
     }
 
-    pub fn update_card_review(&self, id: Id, review: CardReview) {
+    pub fn update_card_review(&mut self, id: Id, review: CardReview) {
         assert!(id != 0);
         self.write(
             r#"
@@ -244,7 +244,7 @@ impl Database {
         );
     }
 
-    pub fn _delete_card(&self, id: Id) {
+    pub fn _delete_card(&mut self, id: Id) {
         self.write("DELETE FROM cards WHERE card_id = ?", [id]);
     }
 
@@ -258,12 +258,12 @@ impl Database {
         self.read("SELECT * FROM tags", [])
     }
 
-    pub fn _create_tag(&self, name: &str) -> Id {
+    pub fn _create_tag(&mut self, name: &str) -> Id {
         self.write("INSERT INTO tags (name) VALUES (?)", [name]);
         self.last_insert_rowid()
     }
 
-    pub fn _update_tag_name(&self, id: Id, name: &str) {
+    pub fn _update_tag_name(&mut self, id: Id, name: &str) {
         assert!(id != 0);
         self.write(
             "UPDATE tags SET name = ? WHERE tag_id = ?",
@@ -271,15 +271,23 @@ impl Database {
         );
     }
 
-    pub fn _delete_tag(&self, id: Id) {
+    pub fn _delete_tag(&mut self, id: Id) {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
     pub fn save(&self, cfg: &Config) {
+        if !self.is_dirty {
+            return;
+        }
+
         if let Some(location) = cfg.get_location() {
             if let Ok(file) = File::create(location) {
                 let mut writer = ZipWriter::new(file);
+
+                // Write database file
                 writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
+
+                // Write asset files
                 for asset_file_name in &self._get_used_assets(cfg) {
                     let file_path = cfg.get_assets_dir().join(asset_file_name);
                     let zip_name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
@@ -308,7 +316,7 @@ impl Database {
         version
     }
 
-    fn _set_version(&self, version: usize) {
+    fn _set_version(&mut self, version: usize) {
         self.write(
             "UPDATE metadata SET version = ? WHERE metadata_id = 1",
             params![version],
@@ -398,7 +406,7 @@ impl Database {
         items
     }
 
-    fn write<P>(&self, sql: &str, params: P) -> usize
+    fn write<P>(&mut self, sql: &str, params: P) -> usize
     where
         P: Params,
     {
@@ -408,6 +416,7 @@ impl Database {
         };
 
         self.update_last_modified();
+        self.is_dirty = true;
 
         changed_rows
     }

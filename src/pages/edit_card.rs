@@ -30,7 +30,7 @@ pub fn EditCard(cx: Scope) -> Element {
             initial_value: db.borrow().get_card(id).content,
             onsave: move |content: &str| {
                 if !content.is_empty() {
-                    db.borrow().update_card_content(id, content);
+                    db.borrow_mut().update_card_content(id, content);
                     done.set(true);
                 }
             },
