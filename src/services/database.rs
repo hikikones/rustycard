@@ -1,11 +1,4 @@
-use std::{
-    collections::HashSet,
-    ffi::OsString,
-    fs::File,
-    io::{Seek, Write},
-    path::Path,
-    rc::Rc,
-};
+use std::{fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
@@ -44,96 +37,19 @@ trait FromRow {
 
 impl Database {
     pub fn new(cfg: &Config) -> Self {
-        // sync(SyncDirection::Open, &cfg);
-
         if let Some(location) = cfg.get_location() {
             if let Ok(file) = std::fs::File::open(location) {
                 let mut reader = ZipArchive::new(file).unwrap();
-                let bytes = reader.read_file(cfg.get_db_file_name());
-                let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
-                kk.write_all(&bytes).unwrap();
-                // let mut tmp = tempfile::tempfile().unwrap();
-                // tmp.write_all(&bytes).unwrap();
-                // tmp.rewind().unwrap();
+                let temp_db_bytes = reader.read_file(cfg.get_db_file_name());
+                let mut temp_db_file = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
+                temp_db_file.write_all(&temp_db_bytes).unwrap();
 
-                // std::thread::sleep(std::time::Duration::from_secs(3));
-
-                if Self::is_newer(kk.path(), &cfg.get_db_file()) {
+                if Self::is_newer(temp_db_file.path(), &cfg.get_db_file()) {
                     reader.extract_file(cfg.get_db_file_name(), cfg.get_db_file(), true);
                     reader.extract_dir(cfg.get_assets_dir_name(), cfg.get_assets_dir(), false);
                 }
-
-                // let do_sync = {
-                //     if !cfg.get_db_file().exists() {
-                //         true
-                //     } else {
-                //         if true {
-                //             false
-                //         } else {
-                //             false
-                //         }
-                //     }
-                // };
-
-                // if let Some(other_datetime) = Self::try_read_last_modified(kk.path()) {
-                //     let do_sync = if let Some(local_datetime) =
-                //         Self::try_read_last_modified(cfg.get_db_file())
-                //     {
-                //         other_datetime > local_datetime
-                //     } else {
-                //         false
-                //     };
-                // }
-
-                // let d1 = Self::try_read_last_modified(cfg.get_db_file());
-                // let d2 = Self::try_read_last_modified(kk.path());
-
-                // dbg!(d1);
-                // dbg!(d2);
-
-                // let conn = match Connection::open(kk.path()) {
-                //     Ok(conn) => conn,
-                //     Err(err) => panic!("{err}"),
-                // };
-
-                // let db = Self(Rc::new(conn));
-
-                // let d1 = self._get_last_modified();
-                // let d2 = db._get_last_modified();
-
-                // if d1 < d2 {
-                //     //todo
-                // }
             }
         }
-
-        // TODO: Sync
-        // if let Some(loc) = cfg.get_location() {
-        //     if let Ok(file) = std::fs::File::open(loc) {
-        //         let mut reader = ZipArchive::new(file).unwrap();
-        //         let bytes = reader.read_file(cfg.get_db_file_name());
-        //         // let mut tmp = tempfile::tempfile().unwrap();
-        //         // tmp.write_all(&bytes).unwrap();
-        //         // tmp.rewind().unwrap();
-
-        //         let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
-        //         kk.write_all(&bytes).unwrap();
-
-        //         let conn = match Connection::open(kk.path()) {
-        //             Ok(conn) => conn,
-        //             Err(err) => panic!("{err}"),
-        //         };
-
-        //         let db = Self(Rc::new(conn));
-
-        //         let d1 = self._get_last_modified();
-        //         let d2 = db._get_last_modified();
-
-        //         if d1 < d2 {
-        //             //todo
-        //         }
-        //     }
-        // }
 
         let conn = match Connection::open(&cfg.get_db_file()) {
             Ok(conn) => conn,
@@ -190,11 +106,10 @@ impl Database {
     pub fn _get_used_assets(&self, cfg: &Config) -> Vec<String> {
         let mut assets = Vec::new();
 
-        // let cards = self.get_cards();
         let contents = self.read::<String, _>("SELECT content FROM cards", []);
         for entry in std::fs::read_dir(cfg.get_assets_dir()).unwrap() {
-            if let Ok(asset) = entry {
-                let file_name = asset.file_name();
+            if let Ok(asset_file) = entry {
+                let file_name = asset_file.file_name();
                 let name_lossy = file_name.to_string_lossy();
                 for content in &contents {
                     if content.contains(name_lossy.as_ref()) {
@@ -202,21 +117,6 @@ impl Database {
                         break;
                     }
                 }
-                // self.read_with("SELECT content FROM cards", [], |row| {
-                //     //todo
-                //     let content: String = row.get(0).unwrap();
-                //     // dbg!(content);
-                //     if content.contains(name_lossy.as_ref()) {
-                //         assets.push(name_lossy.as_ref().to_owned());
-                //         return;
-                //     }
-                // });
-                // for card in &cards {
-                //     if card.content.contains(name_lossy.as_ref()) {
-                //         assets.push(name_lossy.as_ref().to_owned());
-                //         break;
-                //     }
-                // }
             }
         }
 
@@ -364,46 +264,16 @@ impl Database {
 
     pub fn save(&self, cfg: &Config) {
         if let Some(location) = cfg.get_location() {
-            // TODO: is_db_dirty?
             if let Ok(file) = File::create(location) {
                 let mut writer = ZipWriter::new(file);
                 writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
-                // writer.write_dir(cfg.get_assets_dir(), cfg.get_assets_dir_name());
                 for asset_file_name in &self._get_used_assets(cfg) {
-                    let path = cfg.get_assets_dir().join(asset_file_name);
-                    let name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
-                    writer.write_file(path, &name)
+                    let file_path = cfg.get_assets_dir().join(asset_file_name);
+                    let zip_name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
+                    writer.write_file(file_path, &zip_name)
                 }
             }
         }
-
-        // sync(SyncDirection::Close, &cfg);
-        // if let Some(loc) = cfg.get_location() {
-        //     if let Ok(file) = std::fs::File::open(loc) {
-        //         let mut zip = ZipArchive::new(file).unwrap();
-        //         let bytes = zip.read_file(cfg.get_db_file_name());
-        //         // let mut tmp = tempfile::tempfile().unwrap();
-        //         // tmp.write_all(&bytes).unwrap();
-        //         // tmp.rewind().unwrap();
-
-        //         let mut kk = tempfile::NamedTempFile::new_in(cfg.get_app_dir()).unwrap();
-        //         kk.write_all(&bytes).unwrap();
-
-        //         let conn = match Connection::open(kk.path()) {
-        //             Ok(conn) => conn,
-        //             Err(err) => panic!("{err}"),
-        //         };
-
-        //         let db = Self(Rc::new(conn));
-
-        //         let d1 = self._get_last_modified();
-        //         let d2 = db._get_last_modified();
-
-        //         if d1 < d2 {
-        //             //todo
-        //         }
-        //     }
-        // }
     }
 
     fn last_insert_rowid(&self) -> Id {
@@ -571,74 +441,5 @@ impl FromRow for usize {
 impl FromRow for DateTime<Utc> {
     fn from_row(row: &Row) -> Self {
         row.get(0).unwrap()
-    }
-}
-
-enum SyncDirection {
-    Open,
-    Close,
-}
-
-fn sync(direction: SyncDirection, cfg: &Config) {
-    // TODO
-
-    // if let Some(custom_db_file) = cfg.get_custom_db_file() {
-    //     let db_file = match direction {
-    //         SyncDirection::Open => (custom_db_file, cfg.get_app_db_file()),
-    //         SyncDirection::Close => (cfg.get_app_db_file(), custom_db_file),
-    //     };
-    //     if sync_file(&db_file.0, &db_file.1) {
-    //         if let Some(custom_assets_dir) = cfg.get_custom_assets_dir() {
-    //             let assets_dir = match direction {
-    //                 SyncDirection::Open => (custom_assets_dir, cfg.get_app_assets_dir()),
-    //                 SyncDirection::Close => (cfg.get_app_assets_dir(), custom_assets_dir),
-    //             };
-    //             sync_dir(&assets_dir.0, &assets_dir.1);
-    //         }
-    //     }
-    // }
-}
-
-fn sync_file(file: &Path, other: &Path) -> bool {
-    let is_newer = {
-        if !other.exists() {
-            return true;
-        }
-
-        let f1 = std::fs::File::open(file).unwrap();
-        let f2 = std::fs::File::open(other).unwrap();
-
-        let m1 = f1.metadata().unwrap();
-        let m2 = f2.metadata().unwrap();
-
-        m1.modified().unwrap() > m2.modified().unwrap()
-    };
-
-    if is_newer {
-        std::fs::copy(file, other).unwrap();
-    }
-
-    is_newer
-}
-
-fn sync_dir(dir: &Path, other: &Path) {
-    fn get_file_names(d: &Path) -> HashSet<OsString> {
-        std::fs::read_dir(d)
-            .unwrap()
-            .map(|p| p.unwrap().file_name())
-            .collect()
-    }
-
-    let d1 = get_file_names(dir);
-    let d2 = get_file_names(other);
-
-    // Copy over missing files
-    for filename in d1.difference(&d2) {
-        std::fs::copy(dir.join(filename), other.join(filename)).unwrap();
-    }
-
-    // Remove non-existent files
-    for filename in d2.difference(&d1) {
-        std::fs::remove_file(other.join(filename)).unwrap();
     }
 }
