@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::Path, rc::Rc};
+use std::{cell::RefCell, fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use dioxus::prelude::ScopeState;
@@ -8,7 +8,10 @@ use super::{archive::*, config::Config};
 
 pub type Id = usize;
 
-pub struct Database(Connection);
+pub struct Database {
+    connection: Connection,
+    is_dirty: bool,
+}
 
 #[derive(Debug)]
 pub struct Card {
@@ -35,8 +38,8 @@ trait FromRow {
     fn from_row(row: &Row) -> Self;
 }
 
-pub fn use_database(cx: &ScopeState) -> &Database {
-    &*cx.use_hook(|_| cx.consume_context::<Rc<Database>>().unwrap())
+pub fn use_database(cx: &ScopeState) -> &RefCell<Database> {
+    &*cx.use_hook(|_| cx.consume_context::<Rc<RefCell<Database>>>().unwrap())
 }
 
 impl Database {
@@ -60,7 +63,10 @@ impl Database {
             Err(err) => panic!("{err}"),
         };
 
-        let db = Self(conn);
+        let mut db = Self {
+            connection: conn,
+            is_dirty: false,
+        };
 
         match db.try_get_version() {
             Some(version) => {
@@ -100,8 +106,11 @@ impl Database {
         let mut datetime = None;
 
         if let Ok(conn) = Connection::open_with_flags(db_file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            let db = Self(conn);
-            datetime = db._try_get_last_modified();
+            let db = Self {
+                connection: conn,
+                is_dirty: false,
+            };
+            datetime = db.try_get_last_modified();
         }
 
         datetime
@@ -204,12 +213,12 @@ impl Database {
         .unwrap()
     }
 
-    pub fn create_card(&self, content: &str) -> Id {
+    pub fn create_card(&mut self, content: &str) -> Id {
         self.write("INSERT INTO cards (content) VALUES (?)", [content]);
         self.last_insert_rowid()
     }
 
-    pub fn update_card_content(&self, id: Id, content: &str) {
+    pub fn update_card_content(&mut self, id: Id, content: &str) {
         assert!(id != 0);
         self.write(
             "UPDATE cards SET content = ? WHERE card_id = ?",
@@ -217,7 +226,7 @@ impl Database {
         );
     }
 
-    pub fn update_card_review(&self, id: Id, review: CardReview) {
+    pub fn update_card_review(&mut self, id: Id, review: CardReview) {
         assert!(id != 0);
         self.write(
             r#"
@@ -235,7 +244,7 @@ impl Database {
         );
     }
 
-    pub fn _delete_card(&self, id: Id) {
+    pub fn _delete_card(&mut self, id: Id) {
         self.write("DELETE FROM cards WHERE card_id = ?", [id]);
     }
 
@@ -249,12 +258,12 @@ impl Database {
         self.read("SELECT * FROM tags", [])
     }
 
-    pub fn _create_tag(&self, name: &str) -> Id {
+    pub fn _create_tag(&mut self, name: &str) -> Id {
         self.write("INSERT INTO tags (name) VALUES (?)", [name]);
         self.last_insert_rowid()
     }
 
-    pub fn _update_tag_name(&self, id: Id, name: &str) {
+    pub fn _update_tag_name(&mut self, id: Id, name: &str) {
         assert!(id != 0);
         self.write(
             "UPDATE tags SET name = ? WHERE tag_id = ?",
@@ -262,15 +271,23 @@ impl Database {
         );
     }
 
-    pub fn _delete_tag(&self, id: Id) {
+    pub fn _delete_tag(&mut self, id: Id) {
         self.write("DELETE FROM tags WHERE tag_id = ?", [id]);
     }
 
     pub fn save(&self, cfg: &Config) {
+        if !self.is_dirty {
+            return;
+        }
+
         if let Some(location) = cfg.get_location() {
             if let Ok(file) = File::create(location) {
                 let mut writer = ZipWriter::new(file);
+
+                // Write database file
                 writer.write_file(cfg.get_db_file(), cfg.get_db_file_name());
+
+                // Write asset files
                 for asset_file_name in &self._get_used_assets(cfg) {
                     let file_path = cfg.get_assets_dir().join(asset_file_name);
                     let zip_name = format!("{}/{}", cfg.get_assets_dir_name(), asset_file_name);
@@ -281,7 +298,7 @@ impl Database {
     }
 
     fn last_insert_rowid(&self) -> Id {
-        let id = self.0.last_insert_rowid();
+        let id = self.connection.last_insert_rowid();
         id.try_into().unwrap()
     }
 
@@ -299,14 +316,14 @@ impl Database {
         version
     }
 
-    fn _set_version(&self, version: usize) {
+    fn _set_version(&mut self, version: usize) {
         self.write(
             "UPDATE metadata SET version = ? WHERE metadata_id = 1",
             params![version],
         );
     }
 
-    fn _try_get_last_modified(&self) -> Option<DateTime<Utc>> {
+    fn try_get_last_modified(&self) -> Option<DateTime<Utc>> {
         let mut datetime = None;
 
         self.read_single_with(
@@ -321,11 +338,11 @@ impl Database {
     }
 
     fn _get_last_modified(&self) -> DateTime<Utc> {
-        self._try_get_last_modified().unwrap()
+        self.try_get_last_modified().unwrap()
     }
 
     fn update_last_modified(&self) {
-        self.0
+        self.connection
             .execute(
                 "UPDATE metadata SET last_modified = (datetime('now')) WHERE metadata_id = 1",
                 [],
@@ -338,7 +355,9 @@ impl Database {
         P: Params,
         F: FnOnce(&Row),
     {
-        self.0.query_row(sql, params, |row| Ok(f(row))).ok();
+        self.connection
+            .query_row(sql, params, |row| Ok(f(row)))
+            .ok();
     }
 
     fn read_with<P, F>(&self, sql: &str, params: P, mut f: F)
@@ -346,7 +365,7 @@ impl Database {
         P: Params,
         F: FnMut(&Row),
     {
-        match self.0.prepare(sql) {
+        match self.connection.prepare(sql) {
             Ok(mut stmt) => match stmt.query(params) {
                 Ok(mut rows) => {
                     while let Ok(Some(row)) = rows.next() {
@@ -387,22 +406,24 @@ impl Database {
         items
     }
 
-    fn write<P>(&self, sql: &str, params: P) -> usize
+    fn write<P>(&mut self, sql: &str, params: P) -> usize
     where
         P: Params,
     {
-        let changed_rows = match self.0.execute(sql, params) {
+        let changed_rows = match self.connection.execute(sql, params) {
             Ok(changed_rows) => changed_rows,
             Err(err) => panic!("{err}"),
         };
 
         self.update_last_modified();
+        self.is_dirty = true;
 
         changed_rows
     }
 
-    fn write_batch(&self, sql: &str) {
-        self.0.execute_batch(sql).unwrap();
+    fn write_batch(&mut self, sql: &str) {
+        self.connection.execute_batch(sql).unwrap();
+        self.is_dirty = true;
     }
 }
 

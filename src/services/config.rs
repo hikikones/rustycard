@@ -105,11 +105,13 @@ impl Config {
     }
 
     pub fn save(&self) {
-        if self.is_dirty {
-            let toml = toml::to_string(self).unwrap();
-            let mut file = std::fs::File::create(self.get_config_file()).unwrap();
-            file.write_all(toml.as_bytes()).unwrap();
+        if !self.is_dirty {
+            return;
         }
+
+        let toml = toml::to_string(self).unwrap();
+        let mut file = std::fs::File::create(self.get_config_file()).unwrap();
+        file.write_all(toml.as_bytes()).unwrap();
     }
 
     fn get_config_file(&self) -> PathBuf {

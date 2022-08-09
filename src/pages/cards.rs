@@ -7,8 +7,8 @@ use crate::{components::MarkdownView, services::database::*};
 #[allow(non_snake_case)]
 pub fn Cards(cx: Scope) -> Element {
     let db = use_database(&cx);
-    let cards = use_state(&cx, || db.get_cards());
-    let tags = use_state(&cx, || db.get_tags());
+    let cards = use_state(&cx, || db.borrow().get_cards());
+    let tags = use_state(&cx, || db.borrow().get_tags());
     let selected_tags = use_state(&cx, || HashSet::<usize>::new());
     let show_tagless = use_state(&cx, || false);
 
@@ -20,7 +20,7 @@ pub fn Cards(cx: Scope) -> Element {
             onclick: |_| {
                 show_tagless.set(false);
                 selected_tags.make_mut().clear();
-                cards.set(db.get_cards());
+                cards.set(db.borrow().get_cards());
             },
             "Reset"
         }
@@ -35,9 +35,9 @@ pub fn Cards(cx: Scope) -> Element {
                 });
 
                 if show {
-                    cards.set(db.get_cards_without_tags());
+                    cards.set(db.borrow().get_cards_without_tags());
                 } else {
-                    cards.set(db.get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
+                    cards.set(db.borrow().get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
                 }
             },
             "tagless",
@@ -56,7 +56,7 @@ pub fn Cards(cx: Scope) -> Element {
                             tags.insert(t.id);
                         }
                     });
-                    cards.set(db.get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
+                    cards.set(db.borrow().get_cards_with_tags(&selected_tags.current().iter().copied().collect::<Vec<_>>()));
                 },
                 "{t.name} \t",
             }
