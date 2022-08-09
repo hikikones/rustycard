@@ -1,6 +1,11 @@
+use std::rc::Rc;
+
 use dioxus::{desktop::use_window, prelude::*};
 
-use services::{config::Config, database::Database};
+use services::{
+    config::Config,
+    database::{use_database, Database},
+};
 
 mod components;
 mod pages;
@@ -13,13 +18,13 @@ fn main() {
 fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
-        let db = Database::new(&cfg);
+        let db = Rc::new(Database::new(&cfg));
         cx.provide_context(cfg);
         cx.provide_context(db);
     });
 
     let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
-    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = use_database(&cx);
     let window = use_window(&cx);
 
     cx.render(rsx! {

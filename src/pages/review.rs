@@ -6,7 +6,7 @@ use crate::{components::MarkdownView, services::database::*};
 
 #[allow(non_snake_case)]
 pub fn Review(cx: Scope) -> Element {
-    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = use_database(&cx);
     let cards = use_ref(&cx, || db.get_due_cards());
 
     if cards.read().is_empty() {
