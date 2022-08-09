@@ -59,7 +59,8 @@ impl Database {
                 // std::thread::sleep(std::time::Duration::from_secs(3));
 
                 if Self::is_newer(kk.path(), &cfg.get_db_file()) {
-                    //todo: SYNC
+                    reader.extract_file(cfg.get_db_file_name(), cfg.get_db_file(), true);
+                    reader.extract_dir(cfg.get_assets_dir_name(), cfg.get_assets_dir(), false);
                 }
 
                 // let do_sync = {
