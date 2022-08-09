@@ -187,6 +187,26 @@ impl Database {
         datetime
     }
 
+    pub fn _get_used_assets(&self, cfg: &Config) -> Vec<String> {
+        let mut assets = Vec::new();
+
+        let cards = self.get_cards();
+        for entry in std::fs::read_dir(cfg.get_assets_dir()).unwrap() {
+            if let Ok(asset) = entry {
+                let file_name = asset.file_name();
+                let name_lossy = file_name.to_string_lossy();
+                for card in &cards {
+                    if card.content.contains(name_lossy.as_ref()) {
+                        assets.push(name_lossy.as_ref().to_owned());
+                        break;
+                    }
+                }
+            }
+        }
+
+        assets
+    }
+
     pub fn get_card(&self, id: Id) -> Card {
         assert!(id != 0);
         self.read_single("SELECT * FROM cards WHERE card_id = ?", [id])
