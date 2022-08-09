@@ -1,6 +1,7 @@
 use std::{fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
+use dioxus::prelude::Scope;
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
 use super::{archive::*, config::Config};
@@ -33,6 +34,10 @@ pub struct Tag {
 
 trait FromRow {
     fn from_row(row: &Row) -> Self;
+}
+
+pub fn use_database<'a>(cx: Scope<'a>) -> &'a Database {
+    &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap())
 }
 
 impl Database {
