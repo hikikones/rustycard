@@ -6,7 +6,7 @@ use crate::{components::MarkdownView, services::database::*};
 
 #[allow(non_snake_case)]
 pub fn Cards(cx: Scope) -> Element {
-    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = use_database(&cx);
     let cards = use_state(&cx, || db.get_cards());
     let tags = use_state(&cx, || db.get_tags());
     let selected_tags = use_state(&cx, || HashSet::<usize>::new());

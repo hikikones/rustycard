@@ -14,7 +14,7 @@ pub fn EditCard(cx: Scope) -> Element {
 
     assert!(id != 0);
 
-    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let db = use_database(&cx);
     let done = use_state(&cx, || false);
 
     if *done.current() {

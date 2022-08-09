@@ -5,14 +5,16 @@ use std::{
     rc::Rc,
 };
 
+use dioxus::prelude::ScopeState;
 use serde::{Deserialize, Serialize};
 use toml::Value;
 
-#[derive(Clone)]
-pub struct Config(Rc<RefCell<ConfigData>>);
+pub fn use_config(cx: &ScopeState) -> &RefCell<Config> {
+    &*cx.use_hook(|_| cx.consume_context::<Rc<RefCell<Config>>>().unwrap())
+}
 
 #[derive(Serialize, Deserialize)]
-pub struct ConfigData {
+pub struct Config {
     version: usize,
     location: Option<PathBuf>,
 
@@ -22,7 +24,7 @@ pub struct ConfigData {
     is_dirty: bool,
 }
 
-impl Default for ConfigData {
+impl Default for Config {
     fn default() -> Self {
         Self {
             version: 1,
@@ -35,17 +37,16 @@ impl Default for ConfigData {
 
 impl Config {
     pub fn new() -> Self {
-        let mut cfg = ConfigData::default();
+        let mut cfg = Self::default();
 
-        let cfg_file = cfg.get_config_file();
-        let app_assets_dir = cfg.get_assets_dir();
-
-        if !app_assets_dir.exists() {
-            std::fs::create_dir(app_assets_dir).unwrap();
+        let assets_dir = cfg.get_assets_dir();
+        if !assets_dir.exists() {
+            std::fs::create_dir(assets_dir).unwrap();
         }
 
+        let cfg_file = cfg.get_config_file();
         if !cfg_file.exists() {
-            return Self(Rc::new(RefCell::new(cfg)));
+            return cfg;
         }
 
         let data = std::fs::read_to_string(cfg_file).unwrap();
@@ -71,11 +72,11 @@ impl Config {
             }
         }
 
-        Self(Rc::new(RefCell::new(cfg)))
+        cfg
     }
 
     pub fn get_app_dir(&self) -> PathBuf {
-        self.0.borrow().app_dir.to_owned()
+        self.app_dir.to_owned()
     }
 
     pub fn get_db_file_name(&self) -> &str {
@@ -83,21 +84,20 @@ impl Config {
     }
 
     pub fn get_db_file(&self) -> PathBuf {
-        self.0.borrow().app_dir.join(DB_FILE_NAME)
+        self.app_dir.join(DB_FILE_NAME)
     }
 
     pub fn get_assets_dir(&self) -> PathBuf {
-        self.0.borrow().get_assets_dir()
+        self.app_dir.join(ASSETS_DIR_NAME)
     }
 
     pub fn get_location(&self) -> Option<PathBuf> {
-        self.0.borrow().location.to_owned()
+        self.location.to_owned()
     }
 
-    pub fn set_location(&self, path: &Path) {
-        let mut data = self.0.borrow_mut();
-        data.location = Some(path.to_owned());
-        data.is_dirty = true;
+    pub fn set_location(&mut self, path: &Path) {
+        self.location = Some(path.to_owned());
+        self.is_dirty = true;
     }
 
     pub const fn get_assets_dir_name(&self) -> &str {
@@ -105,22 +105,15 @@ impl Config {
     }
 
     pub fn save(&self) {
-        let data = self.0.borrow();
-        if data.is_dirty {
-            let toml = toml::to_string(&*data).unwrap();
-            let mut file = std::fs::File::create(data.get_config_file()).unwrap();
+        if self.is_dirty {
+            let toml = toml::to_string(self).unwrap();
+            let mut file = std::fs::File::create(self.get_config_file()).unwrap();
             file.write_all(toml.as_bytes()).unwrap();
         }
     }
-}
 
-impl ConfigData {
     fn get_config_file(&self) -> PathBuf {
         self.app_dir.join(CONFIG_FILE_NAME)
-    }
-
-    fn get_assets_dir(&self) -> PathBuf {
-        self.app_dir.join(ASSETS_DIR_NAME)
     }
 }
 

@@ -1,6 +1,11 @@
+use std::{cell::RefCell, rc::Rc};
+
 use dioxus::{desktop::use_window, prelude::*};
 
-use services::{config::Config, database::Database};
+use services::{
+    config::{use_config, Config},
+    database::{use_database, Database},
+};
 
 mod components;
 mod pages;
@@ -14,12 +19,12 @@ fn app(cx: Scope) -> Element {
     cx.use_hook(|_| {
         let cfg = Config::new();
         let db = Database::new(&cfg);
-        cx.provide_context(cfg);
-        cx.provide_context(db);
+        cx.provide_context(Rc::new(RefCell::new(cfg)));
+        cx.provide_context(Rc::new(db));
     });
 
-    let cfg = &*cx.use_hook(|_| cx.consume_context::<Config>().unwrap());
-    let db = &*cx.use_hook(|_| cx.consume_context::<Database>().unwrap());
+    let cfg = use_config(&cx);
+    let db = use_database(&cx);
     let window = use_window(&cx);
 
     cx.render(rsx! {
@@ -34,8 +39,8 @@ fn app(cx: Scope) -> Element {
             }
             button {
                 onclick: move |_| {
-                    cfg.save();
-                    db.save(cfg);
+                    cfg.borrow().save();
+                    db.save(&*cfg.borrow());
                     window.close();
                 },
                 "Quit"

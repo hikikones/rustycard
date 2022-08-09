@@ -1,14 +1,14 @@
 use std::{fs::File, io::Write, path::Path, rc::Rc};
 
 use chrono::{DateTime, NaiveDate, Utc};
+use dioxus::prelude::ScopeState;
 use rusqlite::{params, params_from_iter, Connection, OpenFlags, Params, Row};
 
 use super::{archive::*, config::Config};
 
 pub type Id = usize;
 
-#[derive(Clone)]
-pub struct Database(Rc<Connection>);
+pub struct Database(Connection);
 
 #[derive(Debug)]
 pub struct Card {
@@ -35,6 +35,10 @@ trait FromRow {
     fn from_row(row: &Row) -> Self;
 }
 
+pub fn use_database(cx: &ScopeState) -> &Database {
+    &*cx.use_hook(|_| cx.consume_context::<Rc<Database>>().unwrap())
+}
+
 impl Database {
     pub fn new(cfg: &Config) -> Self {
         if let Some(location) = cfg.get_location() {
@@ -56,7 +60,7 @@ impl Database {
             Err(err) => panic!("{err}"),
         };
 
-        let db = Self(Rc::new(conn));
+        let db = Self(conn);
 
         match db.try_get_version() {
             Some(version) => {
@@ -96,7 +100,7 @@ impl Database {
         let mut datetime = None;
 
         if let Ok(conn) = Connection::open_with_flags(db_file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            let db = Self(Rc::new(conn));
+            let db = Self(conn);
             datetime = db._try_get_last_modified();
         }
 
