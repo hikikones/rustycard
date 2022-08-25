@@ -14,7 +14,12 @@ mod pages;
 mod services;
 
 fn main() {
-    dioxus::desktop::launch(app);
+    dioxus::desktop::launch_cfg(app, |c| {
+        let head = r#"
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+        "#.into();
+        c.with_custom_head(head)
+    });
 }
 
 fn app(cx: Scope) -> Element {
