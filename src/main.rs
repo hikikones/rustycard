@@ -7,6 +7,8 @@ use services::{
     database::{use_database, Database},
 };
 
+use crate::components::Button;
+
 mod components;
 mod pages;
 mod services;
@@ -44,6 +46,12 @@ fn app(cx: Scope) -> Element {
                     window.close();
                 },
                 "Quit"
+            }
+            Button {
+                onclick: |_| {
+                    println!("YOYO");
+                }
+                name: "YOYO",
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
