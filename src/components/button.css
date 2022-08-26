@@ -1,8 +1,9 @@
 :root {
     --btn-text-color: black;
-    --btn-bg-color: grey;
+    --btn-bg-color: none;
     --btn-hover-color: blue;
     --btn-active-color: red;
+    --btn-disabled-color: lightgrey;
 }
 
 button.btn {
@@ -22,6 +23,10 @@ button.btn:hover {
 
 button.btn:active {
     background-color: var(--btn-active-color);
+}
+
+button.btn:disabled {
+    background-color: var(--btn-disabled-color);
 }
 
 /* button.btn:focus {

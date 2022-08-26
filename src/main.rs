@@ -61,6 +61,7 @@ fn app(cx: Scope) -> Element {
                     println!("YOYO");
                 }
                 name: "YOYO",
+                disabled: true,
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
