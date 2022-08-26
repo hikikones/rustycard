@@ -1,0 +1,29 @@
+:root {
+    --btn-text-color: black;
+    --btn-bg-color: grey;
+    --btn-hover-color: blue;
+    --btn-active-color: red;
+}
+
+button.btn {
+    display: inline-block;
+    white-space: nowrap;
+    text-decoration: none;
+    padding: 4px 6px;
+    outline: 0;
+    border: 0;
+    color: var(--btn-text-color);
+    background-color: var(--btn-bg-color);
+}
+
+button.btn:hover {
+    background-color: var(--btn-hover-color);
+}
+
+button.btn:active {
+    background-color: var(--btn-active-color);
+}
+
+/* button.btn:focus {
+    background-color: var(--btn-focus-color);
+} */

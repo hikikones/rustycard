@@ -10,6 +10,7 @@ pub struct ButtonProps<'a> {
 pub fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element {
     cx.render(rsx! {
         button {
+            class: "btn",
             onclick: |evt| {
                 cx.props.onclick.call(evt);
             },

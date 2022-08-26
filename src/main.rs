@@ -15,9 +15,13 @@ mod services;
 
 fn main() {
     dioxus::desktop::launch_cfg(app, |c| {
-        let head = r#"
+        let head = format!(
+            r#"
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
-        "#.into();
+            <style>{}</style>
+        "#,
+            include_str!("components/button.css")
+        );
         c.with_custom_head(head)
     });
 }
