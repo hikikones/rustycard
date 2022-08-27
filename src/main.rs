@@ -48,20 +48,13 @@ fn app(cx: Scope) -> Element {
                 Link { to: "/edit_card/1", li { "Edit card"  }}
                 Link { to: "/settings", li { "Settings"  }}
             }
-            button {
+            Button {
                 onclick: move |_| {
                     cfg.borrow().save();
                     db.borrow().save(&*cfg.borrow());
                     window.close();
                 },
-                "Quit"
-            }
-            Button {
-                onclick: |_| {
-                    println!("YOYO");
-                }
-                name: "YOYO",
-                disabled: true,
+                name: "Quit",
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }

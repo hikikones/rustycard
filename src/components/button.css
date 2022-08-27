@@ -28,7 +28,3 @@ button.btn:active {
 button.btn:disabled {
     background-color: var(--btn-disabled-color);
 }
-
-/* button.btn:focus {
-    background-color: var(--btn-focus-color);
-} */
