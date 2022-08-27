@@ -7,12 +7,23 @@ use services::{
     database::{use_database, Database},
 };
 
+use crate::components::Button;
+
 mod components;
 mod pages;
 mod services;
 
 fn main() {
-    dioxus::desktop::launch(app);
+    dioxus::desktop::launch_cfg(app, |c| {
+        let head = format!(
+            r#"
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+            <style>{}</style>
+        "#,
+            include_str!("components/button.css")
+        );
+        c.with_custom_head(head)
+    });
 }
 
 fn app(cx: Scope) -> Element {
@@ -37,13 +48,13 @@ fn app(cx: Scope) -> Element {
                 Link { to: "/edit_card/1", li { "Edit card"  }}
                 Link { to: "/settings", li { "Settings"  }}
             }
-            button {
+            Button {
                 onclick: move |_| {
                     cfg.borrow().save();
                     db.borrow().save(&*cfg.borrow());
                     window.close();
                 },
-                "Quit"
+                name: "Quit",
             }
             Route { to: "/review", pages::Review {} }
             Route { to: "/cards", pages::Cards {} }
