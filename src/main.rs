@@ -19,7 +19,9 @@ fn main() {
             r#"
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
             <style>{}</style>
+            <style>{}</style>
         "#,
+            include_str!("main.css"),
             include_str!("components/button.css")
         );
         c.with_custom_head(head)
@@ -40,28 +42,31 @@ fn app(cx: Scope) -> Element {
 
     cx.render(rsx! {
         Router {
-            h1 { "Navigation" }
-            ul {
-                Link { to: "/review", li { "Review"  }}
-                Link { to: "/cards", li { "Cards"  }}
-                Link { to: "/add_card", li { "Add card"  }}
-                Link { to: "/edit_card/1", li { "Edit card"  }}
-                Link { to: "/settings", li { "Settings"  }}
+            nav {
+                ul {
+                    Link { to: "/review", li { "Review"  }}
+                    Link { to: "/cards", li { "Cards"  }}
+                    Link { to: "/add_card", li { "Add card"  }}
+                    Link { to: "/edit_card/1", li { "Edit card"  }}
+                    Link { to: "/settings", li { "Settings"  }}
+                }
+                Button {
+                    onclick: move |_| {
+                        cfg.borrow().save();
+                        db.borrow().save(&*cfg.borrow());
+                        window.close();
+                    },
+                    name: "Quit",
+                }
             }
-            Button {
-                onclick: move |_| {
-                    cfg.borrow().save();
-                    db.borrow().save(&*cfg.borrow());
-                    window.close();
-                },
-                name: "Quit",
+            main {
+                Route { to: "/review", pages::Review {} }
+                Route { to: "/cards", pages::Cards {} }
+                Route { to: "/add_card", pages::AddCard {} }
+                Route { to: "/edit_card/:id", pages::EditCard {} }
+                Route { to: "/settings", pages::Settings {} }
+                Redirect { from: "", to: "/review" }
             }
-            Route { to: "/review", pages::Review {} }
-            Route { to: "/cards", pages::Cards {} }
-            Route { to: "/add_card", pages::AddCard {} }
-            Route { to: "/edit_card/:id", pages::EditCard {} }
-            Route { to: "/settings", pages::Settings {} }
-            Redirect { from: "", to: "/review" }
         }
     })
 }

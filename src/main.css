@@ -1,0 +1,22 @@
+body {
+    overflow-x: hidden;
+}
+
+nav {
+    height: 100%;
+    width: 150px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding-top: 40px;
+    background-color: lightblue;
+}
+
+main {
+    margin-left: 150px;
+    padding: 0 1em;
+}
+
+h1 {
+    text-align: center;
+}
